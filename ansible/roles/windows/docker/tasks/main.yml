@@ -1,0 +1,93 @@
+---
+- name: Install Hyper-V with management tools
+  win_shell: Install-WindowsFeature -Name Hyper-V -IncludeManagementTools -IncludeAllSubFeature
+
+- name: Set linux containers on windows mode
+  win_environment:
+    state: "{{ 'present' if enable_linux_containers_on_windows else 'absent' }}"
+    name: LCOW_SUPPORTED
+    value: 1
+    level: machine
+
+- name: Install required version of NuGet Package Provider
+  win_shell: Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+
+- name: Install Docker PackageManagement Provider (official from Docker, not Msft)
+  win_shell: Install-Module DockerProvider -Force
+
+- name: Check if docker is already installed
+  win_shell: (Get-Package -Name Docker -ProviderName DockerProvider).Version
+  ignore_errors: yes
+  register: check_docker_package_state
+
+- name: Install docker
+  win_shell: Install-Package Docker -ProviderName DockerProvider -Force -RequiredVersion "{{ docker_version }}"
+  when: check_docker_package_state is failed or check_docker_package_state.stdout | trim != docker_version
+  register: install_docker_package_state
+
+- name: Reboot after docker installation
+  win_reboot:
+    reboot_timeout: 3600
+    post_reboot_delay: 180
+  when: install_docker_package_state is changed
+
+- name: Ensure that docker service is started properly
+  win_service:
+    name: docker
+    start_mode: auto
+    state: started
+
+- name: Install docker service watcher
+  block:
+  - name: Copy docker service watcher daemon file
+    win_copy:
+      src: docker-service-watcher-daemon.ps1
+      dest: "{{ docker_service_watcher_daemon_path }}"
+
+  - name: Ensure that watcher log directory exists
+    win_file:
+      path: "{{ docker_service_watcher_log_path }}"
+      state: directory
+      recurse: yes
+   
+  - name: Create watcher service
+    win_nssm:
+      name: "{{ docker_service_watcher_service_name }}"
+      application: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      app_parameters_free_form: "-ExecutionPolicy Bypass -Noninteractive -File '{{ docker_service_watcher_daemon_path }}'"
+      stdout_file: "{{ docker_service_watcher_log_path }}/{{ docker_service_watcher_service_name }}-stdout.log"
+      stderr_file: "{{ docker_service_watcher_log_path }}/{{ docker_service_watcher_service_name }}-stderr.log"
+      state: present
+      start_mode: auto
+
+  - name: Set service restart delay for short executions
+    win_shell: "nssm set {{ docker_service_watcher_service_name }} AppThrottle 1500"
+
+  - name: Set service default failure action to restart
+    win_shell: "nssm set {{ docker_service_watcher_service_name }} AppExit Default Restart"
+
+  - name: Set service restart delay in case of failure
+    win_shell: "nssm set {{ docker_service_watcher_service_name }} AppRestartDelay 1000"
+
+  - name: Set service to not overwrite stdout file
+    win_shell: "nssm set {{ docker_service_watcher_service_name }} AppStdoutCreationDisposition 4"
+
+  - name: Set service to not overwrite stderr file
+    win_shell: "nssm set {{ docker_service_watcher_service_name }} AppStdoutCreationDisposition 4"
+
+  - name: Start watcher service
+    win_service:
+      name: "{{ docker_service_watcher_service_name }}"
+      state: started
+
+- name: Pull windowsservercore base image from Docker Hub
+  win_shell: docker pull {{ docker_windowsservercore_image }}
+
+- name: Tag selected windowsservercore base image as latest
+  win_shell: docker tag {{ docker_windowsservercore_image }} microsoft/windowsservercore:latest
+
+- name: Pull nanoserver base image from Docker Hub
+  win_shell: docker pull {{ docker_nanoserver_image }}
+
+- name: Tag selected nanoserver base image as latest
+  win_shell: docker tag {{ docker_nanoserver_image }} microsoft/nanoserver:latest

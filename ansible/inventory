@@ -1,0 +1,18 @@
+[master-ubuntu]
+ubuntu01 kubernetes_node_hostname=ubuntu01_some_hostname
+
+[node-ubuntu]
+ubuntu02 kubernetes_node_hostname=ubuntu02_some_hostname
+ubuntu03 kubernetes_node_hostname=ubuntu03_some_hostname
+
+[node-windows]
+windows01 kubernetes_node_hostname=windows01_some_hostname
+windows02 kubernetes_node_hostname=windows02_some_hostname
+
+[node:children]
+node-windows
+node-ubuntu
+
+[all-ubuntu:children]
+master-ubuntu
+node-ubuntu

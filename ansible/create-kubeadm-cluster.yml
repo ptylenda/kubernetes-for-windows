@@ -1,0 +1,170 @@
+---
+- name: Gather all facts
+  hosts: all
+  gather_facts: no
+  pre_tasks:
+    - import_role:
+        name: common/gather-facts
+
+- name: Initialize kubeadm on master node and generate cluster join token
+  hosts: master-ubuntu[0]
+  vars_files:
+    - vars/main.yml
+  environment: "{{ env_vars|default({}) }}"
+  gather_facts: no
+  tasks:
+    - import_role:
+        name: ubuntu/common
+      become: yes
+
+    - import_role:
+        name: ubuntu/kubernetes-node
+      become: yes
+
+    - import_role:
+        name: ubuntu/kubernetes-master
+      tags: init
+
+    - name: Generate kubeadm token on master node
+      become: yes
+      shell: kubeadm token create --print-join-command --ttl 1h
+      register: kubeadm_token_create_state
+      tags: [init, join]
+
+    - name: Set join command as a fact
+      set_fact:
+        kubeadm_join_command: "{{ kubeadm_token_create_state.stdout|trim }}"
+      tags: [init, join]
+
+- name: Join ubuntu nodes using kubeadm
+  hosts: node-ubuntu
+  vars_files:
+    - vars/main.yml
+  environment: "{{ env_vars|default({}) }}"
+  gather_facts: no
+  tasks:
+    - import_role:
+        name: ubuntu/common
+      become: yes
+
+    - import_role:
+        name: ubuntu/kubernetes-node
+      become: yes
+
+    - name: Join ubuntu nodes to kubernetes cluster using kubeadm
+      become: yes
+      shell: "{{ hostvars[groups['master-ubuntu'][0]]['kubeadm_join_command'] }} --node-name {{ kubernetes_node_hostname }}"
+      args:
+        creates: /etc/kubernetes/kubelet.conf
+      register: kubeadm_join_command_state
+      tags: [init, join]
+
+    - debug: msg="{{ kubeadm_join_command_state.stdout_lines }}"
+      when: kubeadm_join_command_state.changed
+      tags: [init, join]
+
+    - debug: msg="{{ kubeadm_join_command_state.stderr_lines }}"
+      when: kubeadm_join_command_state.changed
+      tags: [init, join]
+
+    - name: Delete old flanneld env file if exists
+      become: yes
+      file:
+        path: /var/run/flannel/subnet.env
+        state: absent
+      when: kubeadm_join_command_state.changed
+      tags: [init, join]
+
+    - name: Ensure that services are started on ubuntu nodes
+      become: yes
+      systemd:
+        name: kubelet
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+      tags: [init, join]
+
+- name: Join windows nodes using kubeadm
+  hosts: node-windows
+  vars_files:
+    - vars/main.yml
+  environment: "{{ env_vars|default({}) }}"
+  gather_facts: no
+  tasks:
+    - import_role:
+        name: windows/common
+
+    - name: Join windows nodes kubernetes cluster using kubeadm
+      win_shell: "{{ hostvars[groups['master-ubuntu'][0]]['kubeadm_join_command'] }} --node-name {{ kubernetes_node_hostname }}"
+      args:
+        creates: C:/etc/kubernetes/kubelet.conf
+      register: kubeadm_join_command_state
+      tags: [init, join]
+
+    - debug: msg="{{ kubeadm_join_command_state.stdout_lines }}"
+      when: kubeadm_join_command_state.changed
+      tags: [init, join]
+
+    - debug: msg="{{ kubeadm_join_command_state.stderr_lines }}"
+      when: kubeadm_join_command_state.changed
+      tags: [init, join]
+    
+    - name: Execute cleanup scripts
+      win_shell: kube-cleanup.ps1
+      ignore_errors: yes
+      when: kubeadm_join_command_state.changed
+      tags: [init, join]
+
+    - name: Stop services on windows nodes
+      win_service:
+        name: "{{ item }}"
+        state: stopped
+        force_dependent_services: yes
+      with_items:
+        - kubelet
+        - kube-proxy
+        - flanneld
+      tags: [init, join]
+
+    - name: Ensure that service kubelet is started on windows nodes
+      win_service:
+        name: "{{ item }}"
+        start_mode: auto
+        state: restarted
+        force_dependent_services: yes
+      with_items:
+        - kubelet
+        - kube-proxy
+        - flanneld
+      tags: [init, join]
+
+    # Currently there is no better way to do this. Otherwise flanneld starts 
+    # throwing a lot of "Windows System Error 1168,New-NetRoute" until restarted
+    - name: Wait for kubelet to start properly
+      pause:
+        seconds: 60
+
+    # This is the first start of flanneld when there are "Windows System Error 1168,New-NetRoute"
+    - name: Ensure that flanneld is started for initialization run
+      win_service:
+        name: flanneld
+        start_mode: auto
+        state: restarted
+        force_dependent_services: yes
+      tags: [init, join]
+      
+    - name: Wait for flanneld to start properly
+      pause:
+        seconds: 60
+
+    # Now we can restart flanneld and start kube-proxy as usual
+    - name: Ensure that flanneld and kube-proxy are started on windows nodes
+      win_service:
+        name: "{{ item }}"
+        start_mode: auto
+        state: restarted
+        force_dependent_services: yes
+      with_items:
+        - kube-proxy
+        - flanneld
+      tags: [init, join]

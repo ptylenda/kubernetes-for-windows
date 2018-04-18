@@ -1,0 +1,175 @@
+{ 
+  "variables": {
+    "_comment": "Setting no_proxy in boot_command for hyperv-iso is required in case of using mirror/http/proxy which behaves differently than 'choose-mirror-bin mirror/http/proxy string addr' used in preseed.cfg. Gen 2 VMs do not support floppies, so you are stuck with using preseed/url",  
+    "cpu": "2",
+    "disk_size": "21440",
+    "ftp_proxy": "{{env `ftp_proxy` }}",
+    "headless": "false",
+    "http_proxy": "{{env `http_proxy` }}",
+    "https_proxy": "{{env `https_proxy` }}",
+    "hyperv_switchname": "{{env `hyperv_switchname` }}",
+    "iso_checksum": "a06cd926f5855d4f21fb4bc9978a35312f815fbda0d0ef7fdc846861f4fc4600",
+    "iso_checksum_type": "sha256",
+    "iso_url": "http://releases.ubuntu.com/16.04/ubuntu-16.04.3-server-amd64.iso",
+    "no_proxy": "{{env `no_proxy` }}",
+    "password": "ubuntu",
+    "preseed": "preseed.cfg",
+    "ram_size": "4096",
+    "username": "ubuntu",
+    "vm_name": "packer-kubernetes-node-ubuntu1604"
+  },
+  "builders": [
+    {
+      "boot_command": [
+        "<esc><wait10><esc><esc><enter><wait>",
+        "linux /install/vmlinuz ",
+        "preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/{{ user `preseed` }} ",
+        "debconf/priority=critical ",
+        "auto-install/enable=true ",
+        "hostname={{.Name}} ",
+        "fb=false debconf/frontend=noninteractive ",
+        "passwd/user-fullname={{ user `username` }} ",
+        "passwd/user-password={{ user `password` }} ",
+        "passwd/user-password-again={{ user `password` }} ",
+        "passwd/username={{ user `username` }} ",
+        "mirror/http/proxy={{ user `http_proxy` }} ",
+        "http_proxy={{ user `http_proxy` }} ",
+        "https_proxy={{ user `http_proxy` }} ",
+        "no_proxy={{ .HTTPIP }} <enter>",
+        "initrd /install/initrd.gz<enter>",
+        "boot<enter>"
+      ],
+      "boot_wait": "5s",
+      "communicator": "ssh",
+      "cpu": "{{ user `cpu` }}",
+      "disk_size": "{{ user `disk_size` }}",
+      "enable_dynamic_memory": false,
+      "enable_mac_spoofing": true,
+      "enable_secure_boot": false,
+      "enable_virtualization_extensions": true,
+      "generation": 2,
+      "guest_additions_mode": "disable",
+      "http_directory": "./http",
+      "iso_checksum": "{{ user `iso_checksum` }}",
+      "iso_checksum_type": "{{ user `iso_checksum_type` }}",
+      "iso_urls": [
+        "iso/ubuntu-16.04.3-server-amd64.iso",
+        "{{ user `iso_url` }}"
+      ],
+      "ram_size": "{{ user `ram_size` }}",
+      "shutdown_command": "echo '{{ user `password` }}' | sudo -S -E shutdown -P now",
+      "ssh_password": "{{ user `password` }}",
+      "ssh_port": 22,
+      "ssh_timeout": "4h",
+      "ssh_username": "{{ user `username` }}",
+      "switch_name": "{{ user `hyperv_switchname` }}",
+      "type": "hyperv-iso",
+      "vm_name": "{{ user `vm_name` }}"
+    },
+    {
+      "boot_command": [
+        "<enter><wait><f6><esc><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs><bs>",
+        "/install/vmlinuz noapic ",
+        "file=/floppy/{{ user `preseed` }} ",
+        "debconf/priority=critical ",
+        "auto-install/enable=true ",
+        "hostname={{.Name}} ",
+        "fb=false debconf/frontend=noninteractive ",
+        "passwd/user-fullname={{ user `username` }} ",
+        "passwd/user-password={{ user `password` }} ",
+        "passwd/user-password-again={{ user `password` }} ",
+        "passwd/username={{ user `username` }} ",
+        "mirror/http/proxy={{ user `http_proxy` }} ",
+        "initrd=/install/initrd.gz -- <enter>"
+      ],
+      "disk_size": "{{ user `disk_size` }}",
+      "floppy_files": [
+        "http/{{ user `preseed` }}"
+      ],
+      "format": "qcow2",
+      "headless": "{{ user `headless` }}",
+      "http_directory": "./http",
+      "iso_checksum": "{{ user `iso_checksum` }}",
+      "iso_checksum_type": "{{ user `iso_checksum_type` }}",
+      "iso_urls": [
+        "iso/ubuntu-16.04.3-server-amd64.iso",
+        "{{ user `iso_url` }}"
+      ],
+      "qemuargs": [
+        [
+          "-m",
+          "{{ user `ram_size` }}"
+        ],
+        [
+          "-smp",
+          "cpus={{ user `cpu` }}"
+        ]
+      ],
+      "shutdown_command": "echo '{{ user `password` }}' | sudo -S -E shutdown -P now",
+      "ssh_password": "{{ user `password` }}",
+      "ssh_username": "{{ user `username` }}",
+      "ssh_wait_timeout": "4h",
+      "type": "qemu",
+      "vm_name": "{{ user `vm_name` }}"
+    }
+  ],
+  "provisioners": [
+    {
+      "environment_vars": [
+        "FTP_PROXY={{ user `ftp_proxy` }}",
+        "HTTPS_PROXY={{ user `https_proxy` }}",
+        "HTTP_PROXY={{ user `http_proxy` }}",
+        "INSTALL_VAGRANT_KEY={{ user `install_vagrant_key` }}",
+        "NO_PROXY={{ user `no_proxy` }}",
+        "ftp_proxy={{ user `ftp_proxy` }}",
+        "http_proxy={{ user `http_proxy` }}",
+        "https_proxy={{ user `https_proxy` }}",
+        "no_proxy={{ user `no_proxy` }}"
+      ],
+      "execute_command": "echo '{{ user `password` }}' | {{.Vars}} sudo -S -E bash '{{.Path}}'",
+      "scripts": [
+        "./scripts/update.sh",
+        "./scripts/hyperv.sh"
+      ],
+      "type": "shell"
+    },
+    {
+      "ansible_env_vars": [ "ANSIBLE_HOST_KEY_CHECKING=False", "ANSIBLE_CONFIG=../../ansible/ansible.cfg" ],
+      "extra_arguments": [
+        "-vvvvv",
+        "--extra-vars", "http_proxy={{ user `http_proxy` }} https_proxy={{ user `https_proxy` }} no_proxy={{ user `no_proxy` }} ftp_proxy={{ user `ftp_proxy` }} skip_python_minimal_install=1"
+      ],
+      "groups": [
+        "node-ubuntu",
+        "all-ubuntu"
+      ],
+      "playbook_file": "../../ansible/install-kubernetes.yml",
+      "type": "ansible",
+      "user": "{{ user `username` }}"
+    },
+    {
+      "environment_vars": [
+        "FTP_PROXY={{ user `ftp_proxy` }}",
+        "HTTPS_PROXY={{ user `https_proxy` }}",
+        "HTTP_PROXY={{ user `http_proxy` }}",
+        "NO_PROXY={{ user `no_proxy` }}",
+        "ftp_proxy={{ user `ftp_proxy` }}",
+        "http_proxy={{ user `http_proxy` }}",
+        "https_proxy={{ user `https_proxy` }}",
+        "no_proxy={{ user `no_proxy` }}"
+      ],
+      "execute_command": "echo '{{ user `password` }}' | {{.Vars}} sudo -S -E bash '{{.Path}}'",
+      "scripts": [
+        "./scripts/cleanup.sh"
+      ],
+      "type": "shell"
+    }
+  ],
+  "post-processors": [
+    {
+      "keep_input_artifact": true,
+      "output": "builds/{{.Provider}}-{{ user `vm_name`}}.box",
+      "type": "vagrant"
+    }
+  ]
+}

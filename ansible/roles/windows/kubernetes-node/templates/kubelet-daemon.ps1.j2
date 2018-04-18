@@ -1,0 +1,18 @@
+Get-ChildItem env:
+kubelet --v=4 `
+    --hostname-override=$env:KUBERNETES_NODE_NAME `
+    --pod-infra-container-image=kubeletwin/pause `
+    --allow-privileged=true `
+    --cluster-dns={{ kubernetes_cluster_dns }} --cluster-domain={{ kubernetes_cluster_domain }} `
+    --bootstrap-kubeconfig=C:\etc\kubernetes\bootstrap-kubelet.conf `
+    --kubeconfig="{{ kubernetes_config_path }}"  `
+    --pod-manifest-path="c:\etc\kubernetes\manifests" `
+    --authorization-mode=Webhook  `
+    --enforce-node-allocatable="" `
+    --cgroups-per-qos=false `
+    --network-plugin=cni --cni-bin-dir="c:\k\cni" --cni-conf-dir "c:\k\cni\config" `
+    --client-ca-file="c:\etc\kubernetes\pki\ca.crt" --cadvisor-port=0 `
+    --rotate-certificates=true --cert-dir="c:\var\lib\kubelet\pki" `
+    --image-pull-progress-deadline=20m `
+    --resolv-conf="" `
+    --enable-debugging-handlers

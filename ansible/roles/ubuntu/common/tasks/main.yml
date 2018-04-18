@@ -1,0 +1,127 @@
+---
+- name: Configuring environment proxy
+  lineinfile: 
+    dest: /etc/environment
+    regexp: '^{{ item.name }}='
+    line: "{{ item.name }}={{ item.value }}"
+  with_items:
+    - { name: 'HTTP_PROXY', value: "{{ http_proxy }}" }
+    - { name: 'HTTPS_PROXY', value: "{{ https_proxy }}" }
+    - { name: 'NO_PROXY', value: "{{ no_proxy }}" }
+    - { name: 'http_proxy', value: "{{ http_proxy }}" }
+    - { name: 'https_proxy', value: "{{ https_proxy }}" }
+    - { name: 'no_proxy', value: "{{ no_proxy }}" }
+  when: configure_proxy|bool|default(false)
+  tags: [init, join]
+
+- name: Configure passwordless sudo for current user
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^{{ ansible_user }}'
+    line: '{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+
+- name: Update all packages to the latest version
+  apt:
+    upgrade: dist
+    update_cache: yes
+
+- name: Install required packages
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: no
+  with_items:
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - software-properties-common
+    - ebtables
+    - ethtool
+    - jq
+
+- name: Disable swap
+  block:
+    - name: Disable swap for current boot
+      command: swapoff -a
+      changed_when: False
+
+    - name: Remove swapfile from /etc/fstab
+      lineinfile:
+        dest: /etc/fstab
+        regexp: '^[^\s]+\s+[^\s]+\s+swap'
+        state: absent
+      register: swap_disable_state
+      
+    - name: Find device names for any existing swap partitions
+      shell: blkid -t TYPE=swap -o device
+      register: blkid_swap_state
+      changed_when: blkid_swap_state.stdout_lines | count > 0
+      failed_when: blkid_swap_state.rc != 0 and blkid_swap_state.rc != 2
+
+    - name: Delete swap partitions permanently
+      vars:
+        pattern: '^(\/[^\s]+\/[^\d]+)(\d+)$'
+      parted:
+        device: "{{ item | regex_replace(pattern, '\\1') }}"  # Extract disk device
+        number: "{{ item | regex_replace(pattern, '\\2') }}"  # Extract partition number
+        state: absent
+      with_items: "{{ blkid_swap_state.stdout_lines }}"
+      when: blkid_swap_state.changed
+      register: parted_delete_swap_state
+
+- name: Update sysctl
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+    ignoreerrors: yes
+  with_items:
+    - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { name: 'net.bridge.bridge-nf-call-arptables', value: '1' }
+    - { name: 'vm.swappiness', value: '0' }
+  register: sysctl_state
+
+- name: Get old hostname
+  shell: hostname
+  register: old_hostname_state
+  tags: [init, join]
+
+- name: Change hostname
+  hostname:
+    name: "{{ kubernetes_node_hostname }}"
+  register: hostname_change_state
+  tags: [init, join]
+
+- name: Update /etc/hosts
+  replace:
+    path: /etc/hosts
+    regexp: '(\s+){{ old_hostname_state.stdout | trim }}(\s+.*)?$'
+    replace: '\1{{ kubernetes_node_hostname }}\2'
+    backup: yes
+  when: hostname_change_state.changed
+  tags: [init, join]
+
+- name: Restart host if needed
+  block:
+  - name: Restart host
+    shell: 'sleep 1 && shutdown -r now "Reboot triggered by Ansible" && sleep 1'
+    async: 1
+    poll: 0
+
+  - name: Wait for host to restart
+    local_action:
+      module: wait_for
+      args:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        delay: 10
+    become: no
+  when: (swap_disable_state is defined and swap_disable_state is changed)
+    or (parted_delete_swap_state is defined and parted_delete_swap_state is changed)
+    or (sysctl_state is defined and sysctl_state is changed)
+    or (hostname_change_state is defined and hostname_change_state is changed)
+  tags: [init, join]

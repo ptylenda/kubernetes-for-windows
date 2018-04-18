@@ -1,0 +1,10 @@
+---
+nssm_version: 2.24.101.20180116
+git_version: 2.16.1.4
+openssh_version: 1.0.0.20180202
+7zip_version: 18.1
+pswindowsupdate_version: 1.5.1
+notepadplusplus_version: 7.5.5
+vim_version: 8.0.604
+
+microsoft_sdn_repo_path: "C:/SDN"

@@ -1,0 +1,3 @@
+$env:NODE_NAME = $env:KUBERNETES_NODE_NAME
+Get-ChildItem env:
+flanneld --kubeconfig-file="{{ kubernetes_config_path }}"  --ip-masq --kube-subnet-mgr

@@ -1,0 +1,125 @@
+---
+- name: Initialize kubernetes cluster
+  block:
+    - name: Initialize kubeadm cluster master
+      become: yes
+      shell: kubeadm init  --service-cidr "{{ kubernetes_service_cidr }}" --pod-network-cidr "{{ kubernetes_pod_network_cidr }}" --node-name "{{ kubernetes_node_hostname }}"
+      args:
+        creates: /etc/kubernetes/admin.conf
+      register: kubeadmi_init_command_state
+
+    - debug: msg="{{ kubeadmi_init_command_state.stdout_lines }}"
+      when: kubeadmi_init_command_state.changed
+
+    - debug: msg="{{ kubeadmi_init_command_state.stderr_lines }}"
+      when: kubeadmi_init_command_state.changed
+
+    # This is a hack/workaround for flannel leaving route after a previous deployment
+    # when this host was a regular node (not master). Probably a bug in flannel as this is a corner case
+    - name: Reset old flannel route to localhost
+      become: yes
+      shell: route del -net {{ kubernetes_pod_network_cidr.split('/')[0] }}/24 {{ ansible_default_ipv4.interface }}
+      ignore_errors: yes
+      when: kubeadmi_init_command_state.changed
+
+    - name: Delete old flanneld env file if exists
+      become: yes
+      file:
+        path: /var/run/flannel/subnet.env
+        state: absent
+      when: kubeadmi_init_command_state.changed
+
+    - name: Create kubernetes configuration directory for current user
+      file:
+        path: "{{ ansible_env.HOME }}/.kube"
+        state: directory
+        
+    - name: Copy kubernetes admin configuration file
+      become: yes
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ ansible_env.HOME }}/.kube/config"
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_real_group_id }}"
+        remote_src: yes
+  tags: init
+
+- name: Ensure that user manifests directory exists
+  file:
+    path: "{{ kubernetes_user_manifests_path }}/kubernetes"
+    state: directory
+    recurse: yes
+  tags: [init, cni]
+
+- name: Apply kubelet RBAC
+  block:
+    - name: Copy RBAC role and role binding for standalone kubelet (for windows nodes)
+      copy:
+        src: kube-proxy-node-rbac.yml
+        dest: "{{ kubernetes_user_manifests_path }}/kube-proxy-node-rbac.yml"
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_real_group_id }}"
+
+    - name: Apply RBAC for standalone kubelet
+      shell: kubectl apply -f kube-proxy-node-rbac.yml
+      args:
+        chdir: "{{ kubernetes_user_manifests_path }}"
+      register: apply_kubelet_rbac_state
+
+    - debug: msg={{ apply_kubelet_rbac_state.stdout_lines }}
+
+    - debug: msg={{ apply_kubelet_rbac_state.stderr_lines }}
+  tags: init
+
+- name: Apply kube-proxy nodeselector
+  block:
+    - name: Copy kube-proxy daemonset nodeselector patch
+      copy:
+        src: nodeselector-os-linux-patch.json
+        dest: "{{ kubernetes_user_manifests_path }}/nodeselector-os-linux-patch.json"
+
+    # Due to https://github.com/kubernetes/kubernetes/issues/58212 we cannot rely on exit code for "kubectl patch"
+    - name: Check current nodeselector for kube-proxy daemonset
+      shell: kubectl get ds kube-proxy --namespace=kube-system -o jsonpath='{.spec.template.spec.nodeSelector.beta\.kubernetes\.io/os}'
+      register: current_kube_proxy_state
+
+    - name: Apply nodeselector patch for kube-proxy daemonset
+      shell: kubectl patch ds kube-proxy --namespace=kube-system --type=strategic -p "$(cat nodeselector-os-linux-patch.json)"
+      args:
+        chdir: "{{ kubernetes_user_manifests_path }}"
+      register: patch_kube_proxy_state
+      when: current_kube_proxy_state.stdout | trim | lower != "linux"
+
+    - debug: msg={{ patch_kube_proxy_state.stdout_lines }}
+      when: patch_kube_proxy_state is not skipped
+
+    - debug: msg={{ patch_kube_proxy_state.stderr_lines }}
+      when: patch_kube_proxy_state is not skipped
+  tags: init
+
+- name: Install network
+  block:
+    - name: Copy flannel network manifest
+      template:
+        src: kube-flannel.yml.j2
+        dest: "{{ kubernetes_user_manifests_path }}/kube-flannel.yml"
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_real_group_id }}"
+
+    - name: Install flannel network
+      shell: kubectl apply -f kube-flannel.yml
+      args:
+        chdir: "{{ kubernetes_user_manifests_path }}"
+      register: install_flannel_state 
+
+    - debug: msg={{ install_flannel_state.stdout_lines }}
+
+    - debug: msg={{ install_flannel_state.stderr_lines }}
+
+    - name: Wait for kube-dns pod running
+      shell: "kubectl get pods --all-namespaces | grep kube-dns"
+      register: kube_dns_watch_state
+      until: kube_dns_watch_state.stdout.find("Running") != -1
+      retries: 30
+      delay: 10
+  tags: [init, cni]

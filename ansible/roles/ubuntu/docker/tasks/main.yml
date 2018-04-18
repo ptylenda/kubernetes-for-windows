@@ -1,0 +1,60 @@
+---
+- name: Add Docker repository key
+  apt_key:    
+    id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+    keyserver: hkp://ha.pool.sks-keyservers.net
+    state: present
+
+- name: Add Docker repository and update apt cache
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_distribution_release|lower }} stable"
+    mode: 644
+    update_cache: yes
+    state: present
+
+- name: Install Docker CE
+  apt:
+    name: docker-ce={{ docker_version }}
+    state: present
+    force: yes
+
+- name: Freeze Docker CE package at current version (newer versions are not recommended for kubernetes yet)
+  dpkg_selections:
+    name: docker-ce
+    selection: hold
+
+- name: Add users to the docker group
+  user:
+    name: ubuntu
+    groups: docker
+    append: yes
+
+- name: Copy daemon.json configuration file for docker
+  copy:
+    src: daemon.json
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - Reload systemd
+    - Restart docker service
+
+- name: Configure proxy for docker
+  block:
+  - name: Ensure systemd directory for docker service exists
+    file: 
+      path: /etc/systemd/system/docker.service.d
+      recurse: yes
+      state: directory
+  - name: Set proxy settings for docker engine
+    template:
+      src: http-proxy.conf.j2
+      dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify:
+      - Reload systemd
+      - Restart docker service
+  when: configure_proxy|bool|default(false)

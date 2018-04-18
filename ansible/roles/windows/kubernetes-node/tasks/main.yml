@@ -1,0 +1,214 @@
+---
+- name: Ensure that any old instance of kubelet and kube-proxy is stopped
+  win_service:
+    name: flanneld
+    state: stopped
+    force_dependent_services: yes
+  with_items:
+    - kubelet
+    - kubeproxy
+  ignore_errors: yes
+
+- name: Build pause image for kubelet
+  block:
+  - name: Ensure that images directory exists
+    win_file:
+      path: "{{ docker_images_repo_path }}/kubernetes-windows-pause"
+      state: directory
+      recurse: yes
+
+  - name: Copy image files
+    win_copy:
+      src: "{{ item }}"
+      dest: "{{ docker_images_repo_path }}/kubernetes-windows-pause/{{ item }}"
+    with_items:
+      - Dockerfile
+      - pause.ps1
+
+  - name: Build windows pause docker image
+    win_shell: "docker build -t kubeletwin/pause ."
+    args:
+      chdir: "{{ docker_images_repo_path }}/kubernetes-windows-pause"
+
+- name: Ensure that manifests directory exists
+  win_file:
+    path: "C:/etc/kubernetes/manifests"
+    state: directory
+    recurse: yes
+
+- name: Ensure that download temporary kubernetes directory exists
+  win_file:
+    path: "{{ download_temp_path }}"
+    state: directory
+    recurse: yes
+
+- name: Download kubernetes build
+  win_get_url:
+    url: "{{ kubernetes_package_url }}"
+    dest: "{{ download_temp_path }}/kubernetes.tar.gz"
+    force: yes
+
+- name: Ensure that unzip temporary directory exists
+  win_file:
+    path: "{{ unzip_temp_path }}"
+    state: directory
+    recurse: yes
+
+# Unzipping tar.gz on windows host is rather clumsy. Another option is to use 7zip directly as in: https://stackoverflow.com/questions/1359793/programmatically-extract-tar-gz-in-a-single-step-on-windows-with-7zip
+#- name: Unzip kubernetes gz package 
+#  win_unzip:
+#    src: "{{ download_temp_path }}/kubernetes.tar.gz"
+#    dest: "{{ download_temp_path }}"
+#    delete_archive: yes
+#
+#- name: Find tar package with kubernetes
+#  win_find:
+#    paths: "{{ download_temp_path }}"
+#    patterns: ["*.tar"]
+#  register: kubernetes_find_state
+#
+#- name: Unzip kubernetes tar package 
+#  win_unzip:
+#    src: "{{ item.path }}"
+#    dest: "{{ unzip_temp_path }}"
+#    delete_archive: yes
+#  with_items: "{{ kubernetes_find_state.files }}"
+
+- name: Unzip kubernetes package
+  win_shell: 7z x "{{ download_temp_path }}/kubernetes.tar.gz" -so | 7z x -aoa -si -ttar -o"{{ unzip_temp_path }}"
+  args:
+    executable: cmd  # Required as powershell provides unwanted buffering
+
+- name: Delete kubernetes package archive
+  win_file:
+    path: "{{ download_temp_path }}/kubernetes.tar.gz"
+    state: absent
+
+- name: Ensure that kubernetes installation directory exists
+  win_file:
+    path: "{{ kubernetes_installation_path }}"
+    state: directory
+    recurse: yes
+
+- name: Copy kubernetes to destination directory
+  win_copy:
+    remote_src: yes
+    src: "{{ unzip_temp_path }}/kubernetes/node/bin/"
+    dest: "{{ kubernetes_installation_path }}"
+
+- name: Delete temporary unzip directory
+  win_file:
+    path: "{{ unzip_temp_path }}"
+    state: absent
+    recurse: yes
+
+- name: Ensure that kubernetes is in PATH environment variable
+  win_path:
+    elements: "{{ kubernetes_installation_path }}"
+    scope: machine
+    state: present
+
+- name: Ensure that etc directory is present
+  win_file:
+    path: "C:/etc"
+    state: directory
+    recurse: yes
+    
+- name: Set environment variable for kubernetes node name
+  win_environment:
+    state: present
+    name: KUBERNETES_NODE_NAME
+    value: "{{ kubernetes_node_hostname }}"
+    level: machine
+
+- name: Install kubelet service
+  block:
+    - name: Copy kubelet daemon file
+      win_template:
+        src: kubelet-daemon.ps1.j2
+        dest: "{{ kubernetes_installation_path }}/kubelet-daemon.ps1"
+
+    - name: Ensure that kubelet log directory exists
+      win_file:
+        path: "{{ kubelet_log_path }}"
+        state: directory
+        recurse: yes
+
+    - name: Create kubelet service
+      win_nssm:
+        name: "{{ kubelet_service_name }}"
+        application: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        app_parameters_free_form: "-ExecutionPolicy Bypass -Noninteractive -File '{{ kubernetes_installation_path }}/kubelet-daemon.ps1'"
+        stdout_file: "{{ kubelet_log_path }}/{{ kubelet_service_name }}-stdout.log"
+        stderr_file: "{{ kubelet_log_path }}/{{ kubelet_service_name }}-stderr.log"
+        state: present
+        start_mode: auto
+        dependencies: docker
+
+    - name: Set service restart delay for short executions
+      win_shell: "nssm set {{ kubelet_service_name }} AppThrottle 1500"
+
+    - name: Set service default failure action to restart
+      win_shell: "nssm set {{ kubelet_service_name }} AppExit Default Restart"
+
+    - name: Set service restart delay in case of failure
+      win_shell: "nssm set {{ kubelet_service_name }} AppRestartDelay 1000"
+
+    - name: Set service to not overwrite stdout file
+      win_shell: "nssm set {{ kubelet_service_name }} AppStdoutCreationDisposition 4"
+
+    - name: Set service to not overwrite stderr file
+      win_shell: "nssm set {{ kubelet_service_name }} AppStderrCreationDisposition 4"
+
+- name: Install kube-proxy service
+  block:
+    - name: Copy kube-proxy daemon file
+      win_template:
+        src: kube-proxy-daemon.ps1.j2
+        dest: "{{ kubernetes_installation_path }}/kube-proxy-daemon.ps1"
+
+    - name: Ensure that kube-proxy log directory exists
+      win_file:
+        path: "{{ kube_proxy_log_path }}"
+        state: directory
+        recurse: yes
+     
+    - name: Create kube-proxy service
+      win_nssm:
+        name: "{{ kube_proxy_service_name }}"
+        application: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        app_parameters_free_form: "-ExecutionPolicy Bypass -Noninteractive -File '{{ kubernetes_installation_path }}/kube-proxy-daemon.ps1'"
+        stdout_file: "{{ kube_proxy_log_path }}/{{ kube_proxy_service_name }}-stdout.log"
+        stderr_file: "{{ kube_proxy_log_path }}/{{ kube_proxy_service_name }}-stderr.log"
+        state: present
+        start_mode: auto
+        #dependencies: kubelet,docker  # latest NSSM throws a lot of errors when used with ansible and multiple dependencies
+
+    - name: Set kube-proxy service restart delay for short executions
+      win_shell: "nssm set {{ kube_proxy_service_name }} AppThrottle 1500"
+
+    - name: Set kube-proxy service default failure action to restart
+      win_shell: "nssm set {{ kube_proxy_service_name }} AppExit Default Restart"
+
+    - name: Set kube-proxy service restart delay in case of failure
+      win_shell: "nssm set {{ kube_proxy_service_name }} AppRestartDelay 1000"
+
+    - name: Set kube-proxy service to not overwrite stdout file
+      win_shell: "nssm set {{ kube_proxy_service_name }} AppStdoutCreationDisposition 4"
+
+    - name: Set kube-proxy service to not overwrite stderr file
+      win_shell: "nssm set {{ kube_proxy_service_name }} AppStderrCreationDisposition 4"
+
+    - name: Set kube-proxy service dependency on docker
+      win_shell: "nssm set {{ kube_proxy_service_name }} DependOnService :Docker"
+
+    - name: Set kube-proxy service dependency on kubelet
+      win_shell: "nssm set {{ kube_proxy_service_name }} DependOnService +kubelet"
+
+- name: Copy cleanup scripts
+  win_copy:
+    src: "{{ item }}"
+    dest: "{{ kubernetes_installation_path }}"
+  with_items:
+    - kube-cleanup.ps1
+    - hns.psm1

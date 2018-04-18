@@ -1,0 +1,20 @@
+---
+#kubernetes_package_url: "https://dl.k8s.io/v1.9.3/kubernetes-node-windows-amd64.tar.gz"
+kubernetes_package_url: "https://dl.k8s.io/v1.10.0/kubernetes-node-windows-amd64.tar.gz" 
+kubernetes_installation_path: "C:/k/"
+
+kubelet_log_path: "C:/var/log/"
+kubelet_service_name: kubelet
+
+kube_proxy_log_path: "C:/var/log/"
+kube_proxy_service_name: kube-proxy
+
+download_temp_path: "C:/Temp/"
+unzip_temp_path: "C:/Temp/kubernetes/"
+
+kubernetes_config_path: "C:/etc/kubernetes/kubelet.conf"
+kubernetes_pod_network_cidr: "10.244.0.0/16"
+kubernetes_cluster_dns: "10.96.0.10"
+kubernetes_cluster_domain: "cluster.local"
+
+docker_images_repo_path: "C:/Images"

@@ -1,0 +1,3 @@
+---
+cni_package_url: "https://github.com/ptylenda/plugins/releases/download/v0.7.0-rc2-win/cni-plugins-amd64-v0.7.0-rc2-win.tgz"
+cni_installation_path: "/opt/cni/bin/"

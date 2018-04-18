@@ -1,0 +1,125 @@
+---
+- name: Gather all facts
+  hosts: all
+  gather_facts: no
+  pre_tasks:
+    - import_role:
+        name: common/gather-facts
+
+- name: Reset kubeadm on all ubuntu nodes that are not master
+  hosts: node-ubuntu:!master-ubuntu
+  vars_files:
+    - vars/main.yml
+  environment: "{{ env_vars|default({}) }}"
+  gather_facts: no
+  tasks:
+    - name: Check if kubelet.conf already exists on ubuntu nodes
+      stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_config_state
+    
+    - name: Reset kubeadm
+      block:
+        - name: Drain nodes in inventory
+          shell: kubectl drain {{ kubernetes_node_hostname }} --delete-local-data --force --ignore-daemonsets
+          delegate_to: "{{ kubernetes_master_ip }}"
+          delegate_facts: yes
+
+        - name: Delete nodes in inventory
+          shell: kubectl delete node {{ kubernetes_node_hostname }}
+          delegate_to: "{{ kubernetes_master_ip }}"
+          delegate_facts: yes
+
+        - name: Reset kubeadm on ubuntu nodes
+          become: yes
+          shell: kubeadm reset
+
+        - name: Ensure that services are stopped on ubuntu nodes
+          become: yes
+          systemd:
+            name: kubelet
+            state: stopped
+
+        - name: Delete flannel.1 interface
+          become: yes
+          command: ip link delete flannel.1
+          ignore_errors: yes
+
+        - name: Delete cni0 interface
+          become: yes
+          command: ip link delete cni0
+          ignore_errors: yes
+      when: kubelet_config_state.stat.exists
+
+- name: Reset kubeadm on all windows nodes
+  hosts: node-windows
+  vars_files:
+    - vars/main.yml
+  environment: "{{ env_vars|default({}) }}"
+  gather_facts: no
+  tasks:
+    - name: Check if kubelet.conf already exists on windows nodes
+      win_stat:
+        path: C:/etc/kubernetes/kubelet.conf
+      register: kubelet_config_state
+
+    - name: Reset kubeadm
+      block:
+        - name: Delete nodes in inventory
+          shell: kubectl delete node {{ kubernetes_node_hostname }} --force
+          delegate_to: "{{ kubernetes_master_ip }}"
+          delegate_facts: yes
+
+        - name: Reset kubeadm on windows nodes
+          win_shell: kubeadm reset
+
+        - name: Ensure that services are stopped on windows nodes
+          win_service:
+            name: "{{ item }}"
+            state: stopped
+            force_dependent_services: yes
+          with_items:
+            - flanneld
+            - kube-proxy
+            - kubelet
+
+        - name: Execute cleanup scripts
+          win_shell: kube-cleanup.ps1
+          ignore_errors: yes
+      when: kubelet_config_state.stat.exists
+
+- name: Clean master node and reset kubeadm on master
+  hosts: master-ubuntu
+  vars_files:
+    - vars/main.yml
+  environment: "{{ env_vars|default({}) }}"
+  gather_facts: no
+  tasks:
+    - name: Reset master
+      block:
+        - name: Drain master node
+          shell: kubectl drain {{ kubernetes_node_hostname }} --delete-local-data --force --ignore-daemonsets
+
+        - name: Delete master node
+          shell: kubectl delete node {{ kubernetes_node_hostname }}
+
+        - name: Reset kubeadm on master node
+          become: yes
+          shell: kubeadm reset
+
+        - name: Ensure that services are stopped on ubuntu nodes
+          become: yes
+          systemd:
+            name: kubelet
+            state: stopped
+
+        - name: Delete flannel.1 interface
+          become: yes
+          command: ip link delete flannel.1
+          ignore_errors: yes
+
+        - name: Delete cni0 interface
+          become: yes
+          command: ip link delete cni0
+          ignore_errors: yes
+      when: kubernetes_reset_master

@@ -1,0 +1,11 @@
+{
+   "name": "cbr0",
+   "type": "flannel",
+   "delegate": {
+      "type": "win-l2bridge",
+      "dns": {
+          "Nameservers": [ "{{ kubernetes_cluster_dns }}" ],
+          "Domain": "default.svc.{{ kubernetes_cluster_domain }}"
+      }
+   }
+}

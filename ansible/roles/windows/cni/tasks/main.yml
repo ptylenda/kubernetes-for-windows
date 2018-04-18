@@ -1,0 +1,95 @@
+---
+- name: Ensure that download temporary CNI directory exists
+  win_file:
+    path: "{{ download_temp_path }}"
+    state: directory
+    recurse: yes
+  tags: cni
+
+- name: Download CNI package with host-gw and flannel support on windows
+  win_get_url:
+    url: "{{ cni_package_url }}"
+    dest: "{{ download_temp_path }}/cni.tar.gz"
+    force: yes
+  tags: cni
+
+- name: Ensure that unzip temporary directory exists
+  win_file:
+    path: "{{ unzip_temp_path }}"
+    state: directory
+    recurse: yes
+  tags: cni
+
+# PSCX clashes with docker installation scripts, so it is undesireable.
+# In addition, unzipping tar.gz on windows host is rather clumsy. Another option is to use 7zip directly as in: https://stackoverflow.com/questions/1359793/programmatically-extract-tar-gz-in-a-single-step-on-windows-with-7zip
+#- name: Install PSCX in order to use win_unzip module and tar.gz
+#  win_psmodule:
+#    name: Pscx
+#    allow_clobber: yes
+#    state: present
+#    
+# Example how to use win_unzip for tar.gz (rather not a simple flow, should be fixed in win_unzip plugin)
+#- name: Unzip CNI gz package 
+#  win_unzip:
+#    src: "{{ download_temp_path }}/cni.tar.gz"
+#    dest: "{{ download_temp_path }}"
+#    delete_archive: yes
+#
+#- name: Find tar package with CNI
+#  win_find:
+#    paths: "{{ download_temp_path }}"
+#    patterns: ["*.tar"]
+#  register: cni_find_state
+#
+#- name: Unzip CNI tar package 
+#  win_unzip:
+#    src: "{{ item.path }}"
+#    dest: "{{ unzip_temp_path }}"
+#    delete_archive: yes
+#  with_items: "{{ cni_find_state.files }}"
+
+- name: Unzip CNI package
+  win_shell: 7z x "{{ download_temp_path }}/cni.tar.gz" -so | 7z x -aoa -si -ttar -o"{{ unzip_temp_path }}"
+  args:
+    executable: cmd  # Required as powershell provides unwanted buffering
+  tags: cni
+
+- name: Delete CNI package archive
+  win_file:
+    path: "{{ download_temp_path }}/cni.tar.gz"
+    state: absent
+  tags: cni
+
+- name: Ensure that CNI installation directory exists
+  win_file:
+    path: "{{ cni_installation_path }}"
+    state: directory
+    recurse: yes
+  tags: cni
+    
+- name: Copy CNI plugins to destination directory
+  win_copy:
+    remote_src: yes
+    src: "{{ unzip_temp_path }}/windows/"
+    dest: "{{ cni_installation_path }}"
+  tags: cni
+
+- name: Delete temporary unzip directory
+  win_file:
+    path: "{{ unzip_temp_path }}"
+    state: absent
+    recurse: yes
+  tags: cni
+
+- name: Ensure that CNI config directory exists
+  win_file:
+    path: "{{ cni_config_path }}"
+    state: directory
+    recurse: yes
+  tags: cni
+
+- name: Copy CNI configuration file
+  win_template:
+    src: cni-conf.json.j2
+    dest: "{{ cni_config_path }}/cni-conf.json"
+  tags: cni

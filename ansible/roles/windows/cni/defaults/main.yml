@@ -1,0 +1,9 @@
+---
+cni_package_url: "https://github.com/ptylenda/plugins/releases/download/v0.7.0-rc2-win-fix/cni-plugins-amd64-v0.7.0-rc2-win-fix.tgz"
+cni_installation_path: "C:/k/cni/"
+cni_config_path: "C:/k/cni/config/"
+download_temp_path: "C:/Temp/"
+unzip_temp_path: "C:/Temp/cni/"
+
+kubernetes_cluster_dns: "10.96.0.10"
+kubernetes_cluster_domain: "cluster.local"

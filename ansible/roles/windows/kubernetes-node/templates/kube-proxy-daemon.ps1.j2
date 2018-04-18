@@ -1,0 +1,9 @@
+$env:KUBE_NETWORK="cbr0"  # Required for kernelspace
+$env:INTERFACE_TO_ADD_SERVICE_IP = "vEthernet (cbr0_ep)"  # Required for userspace
+Get-ChildItem env:
+
+# Using "--iface=" with "ansible_default_ipv4" would be possible, if windows hosts setup provided ansible_default_ipv4 like linux hosts
+
+# Currenlty using userspace as there are problems with applying endpoint policies in kernelspace (probably a bug in HNS?)
+# kube-proxy --v=4 --proxy-mode=kernelspace --cluster-cidr={{ kubernetes_pod_network_cidr }} --kubeconfig="{{ kubernetes_config_path }}" --hostname-override=$env:KUBERNETES_NODE_NAME
+kube-proxy --v=4 --proxy-mode=userspace --cluster-cidr={{ kubernetes_pod_network_cidr }} --kubeconfig="{{ kubernetes_config_path }}" --hostname-override=$env:KUBERNETES_NODE_NAME

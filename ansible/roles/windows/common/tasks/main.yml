@@ -1,0 +1,94 @@
+---
+- name: Configure proxy
+  block:
+    - name: Set proxy environment variables for all users
+      win_environment:
+        state: present
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        level: machine
+      with_dict:
+        HTTP_PROXY: "{{ http_proxy }}"
+        HTTPS_PROXY: "{{ https_proxy }}"
+        NO_PROXY: "{{ no_proxy }}"
+  when: configure_proxy|bool|default(false)
+  tags: [init, join]
+
+#- name: Uninstall PSCX in order not to clash with docker installation
+#  win_psmodule:
+#    name: Pscx
+#    allow_clobber: yes
+#    state: absent
+  
+- name: Install common packages using chocolatey
+  win_chocolatey:
+    name: "{{ item.key }}"
+    version: "{{ item.value }}"
+  with_dict:
+    nssm: "{{ nssm_version }}"
+    git: "{{ git_version }}"
+    openssh: "{{ openssh_version }}"
+    7zip: "{{ 7zip_version }}"
+    pswindowsupdate: "{{ pswindowsupdate_version }}"
+    notepadplusplus: "{{ notepadplusplus_version }}"
+    vim: "{{ vim_version }}"
+
+
+- name: Ensure that Microsoft SDN directory exists
+  win_file:
+    path: "{{ microsoft_sdn_repo_path }}"
+    state: directory
+  register: microsoft_sdn_dir_state
+
+- name: Clone Microsoft SDN repository with helper scripts
+  win_shell: "git clone https://github.com/Microsoft/SDN.git ."
+  args:
+    chdir: "{{ microsoft_sdn_repo_path }}"
+  when: microsoft_sdn_dir_state.changed
+
+# TODO: use win_domain_membership and use regular domain registration if requested
+- name: Change hostname if required
+  block:
+    - name: Check current hostname
+      win_shell: $(Get-ComputerInfo -Property "CsName").CsName
+      register: current_hostname_state
+      changed_when: False
+    - name: Change hostname
+      win_shell: Rename-Computer -NewName "{{ kubernetes_node_hostname|trim }}"
+      register: hostname_change_state
+      when: kubernetes_node_hostname|lower|trim != current_hostname_state.stdout|lower|trim
+  when: kubernetes_node_hostname != ""
+  tags: [init, join]
+  
+- name: Register Microsoft Update Service instead of default Windows Update Service
+  win_shell: "Add-WUServiceManager -ServiceID 7971f918-a847-4430-9279-4a52d1efe18d -Confirm:$false"
+
+# NOTE: Requires Ansible higher than ansible 2.5.0b2 due to bugs in 2.4 and win_updates
+- name: Install windows updates
+  win_updates:
+    category_names:
+      - Application
+      - Connectors
+      - DefinitionUpdates
+      - DeveloperKits
+      - FeaturePacks
+      - Guidance
+      - ServicePacks
+      - Tools
+      - UpdateRollups
+      - CriticalUpdates
+      - SecurityUpdates
+      - Updates
+  register: update_state
+
+- name: Reboot if needed
+  win_reboot:
+    reboot_timeout: 3600
+    post_reboot_delay: 60
+  when: (hostname_change_state is defined and hostname_change_state is changed) 
+    or (update_state is defined and update_state is not skipped and update_state.reboot_required)
+  tags: [init, join]
+  
+- name: Gather facts again
+  setup:
+  tags: [init, join]
