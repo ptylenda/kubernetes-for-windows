@@ -7,7 +7,7 @@
 - Windows Server 1709 (Jan 2018) as Kubernetes nodes with Docker 17.10.0-ee-preview-3.
 - Ubuntu 16.04 LTS (Xenial) as Kubernetes master and nodes with Docker 17.03.
 - Cluster initialization using [kubeadm](https://kubernetes.io/docs/setup/independent/create-cluster-kubeadm/) (both Windows and Linux nodes).
-- Flannel pod network, host-gw backend (vxlan can be also installed, requires changes in network deployment file and installaton of CNI plugins on Windows). Based on https://github.com/coreos/flannel/pull/921 and https://github.com/containernetworking/plugins/pull/85 by [rakelkar](https://github.com/rakelkar).
+- Flannel pod network, host-gw backend (vxlan can be also installed, requires changes in network deployment file and installation of CNI plugins on Windows). Based on https://github.com/coreos/flannel/pull/921 and https://github.com/containernetworking/plugins/pull/85 by [rakelkar](https://github.com/rakelkar).
 - Configurable pod/service CIDRs.
 - Deployment of [Microsoft SDN](https://github.com/Microsoft/SDN) github repository do Windows nodes in order to make debugging easier.
 - Exposing NodePort services on both Windows and Linux nodes.
@@ -102,7 +102,7 @@ master-ubuntu
 node-ubuntu
 ```
 The host variable ``kubernetes_node_hostname`` will be used as Windows/Linux hostname and at the same time it will be used to identify node in Kubernetes.
-Any other variables that you wish to configure are available in [group_vars](ansible/group_vars) and in [vars.yaml](ansible/vars/vars.yml), for example cluster/service pod CIDRs.
+Any other variables that you wish to configure are available in [group_vars](ansible/group_vars) and in [vars](ansible/vars/main.yml), for example cluster/service pod CIDRs.
 ### Step 3 - Install Kubernetes packages using install-kubernetes.yml playbook
 In order to install basic Kubernetes packages on Windows and Linux nodes, run ``install-kubernetes.yml`` playbook:
 ```
@@ -150,6 +150,7 @@ The playbook is idempotent, so you can add more nodes to an existing cluster jus
 kubectl apply -f win-webserver.yaml
 ```
 This will also deploy a Kubernetes NodePort Service which can be accessed on every Kubernetes node, both Windows and Linux, for example:
+
 ![NodePort service call result](docs/win-webserver-nodeport.jpg "NodePort service call result")
 
 ### Step 6 - Resetting Kubernetes cluster
@@ -166,14 +167,16 @@ This playbook performs draining and deleting of the nodes on master node and eve
 ## Packer usage
 For easier usage of Packer with Ansible Remote provisoner on Windows, an additional wrapper script has been provided: [packer-ansible-windows.ps1](packer/windows/packer-ansible-windows.ps1). Basically it adds Ansible wrappers to PATH and ensures that proxy settings are configured properly.
 
-ISO files are expected to be loaded from ./iso subdirectory in packer build space. For Ubuntu it is also possible to download the image automatically from the official http server. For Windows you have to provide your own copy of Windows Server 1709 ISO.
+ISO files are expected to be loaded from ``./iso`` subdirectory in packer build space. For Ubuntu it is also possible to download the image automatically from the official http server. For Windows you have to provide your own copy of Windows Server 1709 ISO.
 
 To build Windows node on Hyper-V:
 
 	$  .\packer-ansible-windows.ps1 build --only=hyperv-iso .\kubernetes-node-windows1709-jan2018.json
 
 Default user: ubuntu
+
 Default password: ubuntu
+
 (configurable in template variables)
 
 To build Ubuntu node/master on Hyper-V:
@@ -181,7 +184,9 @@ To build Ubuntu node/master on Hyper-V:
 	$ .\packer-ansible-windows.ps1 build --only=hyperv-iso .\kubernetes-node-ubuntu1604.json
 
 Default user: Administrator
+
 Default password: password
+
 (configurable in template variables AND in http\Autounattend.xml file, which does not support templating)
 
 ## Additional notes for Packer and Ubuntu 16.04 LTS template
