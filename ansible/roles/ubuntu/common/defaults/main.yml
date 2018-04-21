@@ -1,0 +1,3 @@
+---
+
+k8s_linux_disable_swap: True

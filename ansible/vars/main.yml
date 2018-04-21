@@ -16,3 +16,10 @@ env_vars:
   HTTP_PROXY: "{{ http_proxy }}"
   HTTPS_PROXY: "{{ https_proxy }}"
   NO_PROXY: "{{ no_proxy }}"
+
+# roles/ubuntu/docker/tasks adds to docker group
+docker_user: "{{ ansible_user }}"
+
+# Set True when you want common/ubuntu to disable swap if preset
+# Or disable swap manually
+k8s_linux_disable_swap: False

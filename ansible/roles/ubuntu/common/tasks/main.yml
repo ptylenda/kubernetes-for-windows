@@ -70,6 +70,7 @@
       with_items: "{{ blkid_swap_state.stdout_lines }}"
       when: blkid_swap_state.changed
       register: parted_delete_swap_state
+  when: k8s_linux_disable_swap
 
 - name: Update sysctl
   sysctl:

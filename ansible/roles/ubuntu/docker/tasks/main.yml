@@ -25,7 +25,7 @@
 
 - name: Add users to the docker group
   user:
-    name: ubuntu
+    name: "{{ docker_user }}"
     groups: docker
     append: yes
 
