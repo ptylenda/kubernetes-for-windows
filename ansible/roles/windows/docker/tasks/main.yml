@@ -1,6 +1,7 @@
 ---
 - name: Install Hyper-V with management tools
   win_shell: Install-WindowsFeature -Name Hyper-V -IncludeManagementTools -IncludeAllSubFeature
+  when: win_docker_enable_hyperv
 
 - name: Set linux containers on windows mode
   win_environment:
@@ -11,17 +12,27 @@
 
 - name: Install required version of NuGet Package Provider
   win_shell: Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+  when: win_docker_provider == 'DockerProvider'
 
 - name: Install Docker PackageManagement Provider (official from Docker, not Msft)
   win_shell: Install-Module DockerProvider -Force
+  when: win_docker_provider == 'DockerProvider'
+
+- name: Import docker PackageManagement Provider from Msft
+  win_shell: Import-Module -Name DockerMsftProvider -Force
+  when: win_docker_provider == 'DockerMsftProvider'
+
+- name: Install docker PackageManagement Provider from Msft
+  win_shell: Import-Packageprovider -Name DockerMsftProvider -Force
+  when: win_docker_provider == 'DockerMsftProvider'
 
 - name: Check if docker is already installed
-  win_shell: (Get-Package -Name Docker -ProviderName DockerProvider).Version
+  win_shell: (Get-Package -Name Docker -ProviderName {{ win_docker_provider }}).Version
   ignore_errors: yes
   register: check_docker_package_state
 
 - name: Install docker
-  win_shell: Install-Package Docker -ProviderName DockerProvider -Force -RequiredVersion "{{ docker_version }}"
+  win_shell: Install-Package Docker -ProviderName {{ win_docker_provider }} -Force -RequiredVersion "{{ docker_version }}"
   when: check_docker_package_state is failed or check_docker_package_state.stdout | trim != docker_version
   register: install_docker_package_state
 

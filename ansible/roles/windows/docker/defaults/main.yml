@@ -1,5 +1,5 @@
 ---
-docker_version: "17.10.0-ee-preview-3"  # "17.06.2-ee-6"
+docker_version: "17.06.2-ee-8"  # "17.06.2-ee-6" "17.06.2-ee-8" "17.10.0-ee-preview-3"
 enable_linux_containers_on_windows: False
 docker_service_watcher_daemon_path: "C:/ProgramData/Docker/docker-service-watcher-daemon.ps1"
 docker_service_watcher_service_name: docker-service-watcher
@@ -7,3 +7,9 @@ docker_service_watcher_log_path: "C:/var/log"
 
 docker_windowsservercore_image: "microsoft/windowsservercore:1709"  # "microsoft/windowsservercore-insider:10.0.17623.1002"
 docker_nanoserver_image: "microsoft/nanoserver:1709"  # "microsoft/nanoserver-insider:10.0.17623.1002"
+win_docker_enable_hyperv: False
+# https://github.com/OneGet/MicrosoftDockerProvider # Not supported behind proxy
+# Microsoft Docker Provider is required for Windows Containers support
+win_docker_provider: "DockerMsftProvider"
+# Option2: Use nuget with DockerProvider, but it requires hyperv as doesn't user Windows Containers
+# win_docker_provider: "DockerProvider"

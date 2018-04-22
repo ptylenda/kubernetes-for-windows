@@ -10,7 +10,7 @@ kubernetes_reset_master: False
 http_proxy: ""  # Define your proxy here
 https_proxy: ""  # Define your proxy here
 no_proxy: "{{ kubernetes_master_ip }},{{ kubernetes_service_cidr }},{{ kubernetes_pod_network_cidr }}"
-configure_proxy: "{{ True if http_proxy or https_proxy or no_proxy else False }}"
+configure_proxy: "{{ True if http_proxy or https_proxy else False }}" # If you had proxy and then removed, you need True here
 
 env_vars:
   HTTP_PROXY: "{{ http_proxy }}"
@@ -23,3 +23,14 @@ docker_user: "{{ ansible_user }}"
 # Set True when you want common/ubuntu to disable swap if preset
 # Or disable swap manually
 k8s_linux_disable_swap: False
+
+# Use this var if you are going to enable Hype-V isolated containers features
+win_docker_enable_hyperv: False
+
+# https://github.com/OneGet/MicrosoftDockerProvider # Not supported behind proxy
+# Microsoft Docker Provider is required for Windows Containers support
+win_docker_provider: "DockerMsftProvider"
+# Option2: Use nuget with DockerProvider, but it requires hyperv as doesn't user Windows Containers
+# win_docker_provider: "DockerProvider"
+# Docker version depends on the provider used, from msft use docker ee
+docker_version: "17.06.2-ee-8"  # "17.06.2-ee-6" "17.06.2-ee-8" "17.10.0-ee-preview-3"
