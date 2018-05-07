@@ -17,6 +17,12 @@ env_vars:
   HTTPS_PROXY: "{{ https_proxy }}"
   NO_PROXY: "{{ no_proxy }}"
 
+# When using proxy you will need also:
+# http://docs.ansible.com/ansible/latest/modules/win_chocolatey_module.html#examples
+win_choco_proxy_url: ""
+win_choco_proxy_username: ""
+win_choco_proxy_password: ""
+
 # roles/ubuntu/docker/tasks adds to docker group
 docker_user: "{{ ansible_user }}"
 
@@ -26,11 +32,3 @@ k8s_linux_disable_swap: False
 
 # Use this var if you are going to enable Hype-V isolated containers features
 win_docker_enable_hyperv: False
-
-# https://github.com/OneGet/MicrosoftDockerProvider # Not supported behind proxy
-# Microsoft Docker Provider is required for Windows Containers support
-win_docker_provider: "DockerMsftProvider"
-# Option2: Use nuget with DockerProvider, but it requires hyperv as doesn't user Windows Containers
-# win_docker_provider: "DockerProvider"
-# Docker version depends on the provider used, from msft use docker ee
-docker_version: "17.06.2-ee-8"  # "17.06.2-ee-6" "17.06.2-ee-8" "17.10.0-ee-preview-3"

@@ -20,19 +20,20 @@
 #    allow_clobber: yes
 #    state: absent
   
-- name: Install common packages using chocolatey
+- name: Install common packages using chocolatey with proxy
   win_chocolatey:
-    name: "{{ item.key }}"
-    version: "{{ item.value }}"
-  with_dict:
-    nssm: "{{ nssm_version }}"
-    git: "{{ git_version }}"
-    openssh: "{{ openssh_version }}"
-    7zip: "{{ 7zip_version }}"
-    pswindowsupdate: "{{ pswindowsupdate_version }}"
-    notepadplusplus: "{{ notepadplusplus_version }}"
-    vim: "{{ vim_version }}"
+    name: "{{ item.name }}"
+    proxy_url: "{{ win_choco_proxy_url }}"
+    proxy_username: "{{ win_choco_proxy_username }}"
+    proxy_password: "{{ win_choco_proxy_password }}"
+  with_items: "{{ win_common_packages }}"
+  when: configure_proxy
 
+- name: Install common packages using chocolatey without proxy
+  win_chocolatey:
+    name: "{{ item.name }}"
+  with_items: "{{ win_common_packages }}"
+  when: not configure_proxy
 
 - name: Ensure that Microsoft SDN directory exists
   win_file:
