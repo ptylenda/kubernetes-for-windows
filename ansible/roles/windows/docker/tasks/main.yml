@@ -12,19 +12,14 @@
 
 - name: Install required version of NuGet Package Provider
   win_shell: Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-  when: win_docker_provider == 'DockerProvider'
+
+- name: Install Docker Package Management Provider (Docker Msft provider)
+  win_shell: Install-Module -Name DockerMsftProvider -Force
+  when: win_docker_provider == 'DockerMsftProvider'
 
 - name: Install Docker PackageManagement Provider (official from Docker, not Msft)
   win_shell: Install-Module DockerProvider -Force
   when: win_docker_provider == 'DockerProvider'
-
-- name: Import docker PackageManagement Provider from Msft
-  win_shell: Import-Module -Name DockerMsftProvider -Force
-  when: win_docker_provider == 'DockerMsftProvider'
-
-- name: Install docker PackageManagement Provider from Msft
-  win_shell: Import-Packageprovider -Name DockerMsftProvider -Force
-  when: win_docker_provider == 'DockerMsftProvider'
 
 - name: Check if docker is already installed
   win_shell: (Get-Package -Name Docker -ProviderName {{ win_docker_provider }}).Version

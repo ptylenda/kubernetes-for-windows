@@ -13,6 +13,12 @@
         NO_PROXY: "{{ no_proxy }}"
   when: configure_proxy|bool|default(false)
   tags: [init, join]
+  
+# TODO: Add settings for windows update behind proxy
+# https://support.microsoft.com/en-us/help/900935/how-the-windows-update-client-determines-which-proxy-server-to-use-to
+# There are some special things to do for windows win_updates
+# https://support.microsoft.com/en-us/help/3084568/can-t-download-updates-from-windows-update-from-behind-a-firewall-or-p
+# https://support.microsoft.com/en-us/help/3175743/proxy-requirements-for-windows-update
 
 #- name: Uninstall PSCX in order not to clash with docker installation
 #  win_psmodule:
