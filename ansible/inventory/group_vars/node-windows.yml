@@ -2,6 +2,7 @@
 # ansible-vault edit group_vars/node-windows.yml
 
 ansible_user: Administrator
+# Ensure you don't have ansible_ssh_pass var set in your own group_vars/all.yml, it will overwrite this.
 ansible_password: password
 ansible_port: 5986
 ansible_connection: winrm
@@ -10,3 +11,5 @@ ansible_winrm_operation_timeout_sec: 120
 ansible_winrm_read_timeout_sec: 140
 # The following is necessary for Python 2.7.9+ (or any older Python that has backported SSLContext, eg, Python 2.7.5 on RHEL7) when using default WinRM self-signed certificates:
 ansible_winrm_server_cert_validation: ignore
+ansible_become_user: System
+ansible_become_method: runas

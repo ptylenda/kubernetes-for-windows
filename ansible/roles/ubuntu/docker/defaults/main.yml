@@ -1,4 +1,0 @@
----
-docker_version: "17.03.*"
-# roles/ubuntu/docker/tasks adds to docker group
-docker_user: "{{ ansible_user }}"

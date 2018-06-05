@@ -1,6 +1,4 @@
 ---
 
-kubernetes_service_cidr: "10.96.0.0/12"
-kubernetes_pod_network_cidr: "10.244.0.0/16"
 kubernetes_user_manifests_path: "{{ ansible_env.HOME }}/kube-manifests"
 kubernetes_deploy_dashboard: True

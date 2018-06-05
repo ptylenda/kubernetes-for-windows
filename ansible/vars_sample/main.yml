@@ -1,7 +1,7 @@
 ---
+# These are old sample without kubespray integration, see inventory/group_vars for more information
 kubernetes_master_ip: "{{ hostvars[groups['master-ubuntu'][0]]['ansible_default_ipv4']['address'] }}"
 kubernetes_pod_network_cidr: "10.200.0.0/16"
-kubernetes_service_cidr: "10.201.0.0/16"
 kubernetes_cluster_dns: "10.201.0.10"
 kubernetes_cluster_domain: "cluster.local"
 
@@ -9,7 +9,7 @@ kubernetes_reset_master: False
 
 http_proxy: ""  # Define your proxy here
 https_proxy: ""  # Define your proxy here
-no_proxy: "{{ kubernetes_master_ip }},{{ kubernetes_service_cidr }},{{ kubernetes_pod_network_cidr }}"
+no_proxy: "{{ kubernetes_master_ip }},{{ kubernetes_pod_network_cidr }}"
 configure_proxy: "{{ True if http_proxy or https_proxy else False }}" # If you had proxy and then removed, you need True here
 
 env_vars:

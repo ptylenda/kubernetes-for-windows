@@ -1,6 +1,6 @@
 ---
 - name: Gather all facts
-  hosts: all
+  hosts: master-ubuntu
   gather_facts: no
   pre_tasks:
     - import_role:
@@ -8,18 +8,9 @@
 
 - name: Initialize kubeadm on master node and generate cluster join token
   hosts: master-ubuntu[0]
-  vars_files:
-    - vars/main.yml
   environment: "{{ env_vars|default({}) }}"
   gather_facts: no
   tasks:
-    - import_role:
-        name: ubuntu/common
-      become: yes
-
-    - import_role:
-        name: ubuntu/kubernetes-node
-      become: yes
 
     - import_role:
         name: ubuntu/kubernetes-master
@@ -36,63 +27,11 @@
         kubeadm_join_command: "{{ kubeadm_token_create_state.stdout|trim }}"
       tags: [init, join]
 
-- name: Join ubuntu nodes using kubeadm
-  hosts: node-ubuntu
-  vars_files:
-    - vars/main.yml
-  environment: "{{ env_vars|default({}) }}"
-  gather_facts: no
-  tasks:
-    - import_role:
-        name: ubuntu/common
-      become: yes
-
-    - import_role:
-        name: ubuntu/kubernetes-node
-      become: yes
-
-    - name: Join ubuntu nodes to kubernetes cluster using kubeadm
-      become: yes
-      shell: "{{ hostvars[groups['master-ubuntu'][0]]['kubeadm_join_command'] }} --node-name {{ kubernetes_node_hostname }}"
-      args:
-        creates: /etc/kubernetes/kubelet.conf
-      register: kubeadm_join_command_state
-      tags: [init, join]
-
-    - debug: msg="{{ kubeadm_join_command_state.stdout_lines }}"
-      when: kubeadm_join_command_state.changed
-      tags: [init, join]
-
-    - debug: msg="{{ kubeadm_join_command_state.stderr_lines }}"
-      when: kubeadm_join_command_state.changed
-      tags: [init, join]
-
-    - name: Delete old flanneld env file if exists
-      become: yes
-      file:
-        path: /var/run/flannel/subnet.env
-        state: absent
-      when: kubeadm_join_command_state.changed
-      tags: [init, join]
-
-    - name: Ensure that services are started on ubuntu nodes
-      become: yes
-      systemd:
-        name: kubelet
-        state: restarted
-        enabled: yes
-        daemon_reload: yes
-      tags: [init, join]
-
 - name: Join windows nodes using kubeadm
   hosts: node-windows
-  vars_files:
-    - vars/main.yml
   environment: "{{ env_vars|default({}) }}"
   gather_facts: no
   tasks:
-    - import_role:
-        name: windows/common
 
     - name: Join windows nodes kubernetes cluster using kubeadm
       win_shell: "{{ hostvars[groups['master-ubuntu'][0]]['kubeadm_join_command'] }} --node-name {{ kubernetes_node_hostname }}"
