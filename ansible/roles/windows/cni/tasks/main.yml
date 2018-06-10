@@ -10,7 +10,7 @@
   win_get_url:
     url: "{{ cni_package_url }}"
     dest: "{{ download_temp_path }}/cni.tar.gz"
-    force: yes
+    force: no
   tags: cni
 
 - name: Ensure that unzip temporary directory exists
