@@ -4,8 +4,8 @@ docker_service_watcher_daemon_path: "C:/ProgramData/Docker/docker-service-watche
 docker_service_watcher_service_name: docker-service-watcher
 docker_service_watcher_log_path: "C:/var/log"
 
-docker_windowsservercore_image: "microsoft/windowsservercore:1709"  # "microsoft/windowsservercore-insider:10.0.17623.1002"
-docker_nanoserver_image: "microsoft/nanoserver:1709"  # "microsoft/nanoserver-insider:10.0.17623.1002"
+docker_windowsservercore_image: "microsoft/windowsservercore:1803"  # "microsoft/windowsservercore-insider:10.0.17623.1002"
+docker_nanoserver_image: "microsoft/nanoserver:1803"  # "microsoft/nanoserver-insider:10.0.17623.1002"
 win_docker_enable_hyperv: False
 # Microsoft Docker Provider is required for Windows Containers support
 # Docker version depends on the provider used, from msft use docker ee

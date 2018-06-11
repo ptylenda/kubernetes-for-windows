@@ -36,7 +36,7 @@
                         </ModifyPartition>
                         <ModifyPartition wcm:action="add">
                             <Format>NTFS</Format>
-                            <Label>Windows 1709</Label>
+                            <Label>Windows 1803</Label>
                             <Letter>C</Letter>
                             <Order>2</Order>
                             <PartitionID>2</PartitionID>
@@ -77,7 +77,7 @@
             <OEMInformation>
                 <HelpCustomized>false</HelpCustomized>
             </OEMInformation>
-            <ComputerName>windows1709</ComputerName>
+            <ComputerName>windows1803</ComputerName>
             <TimeZone>Greenwich Standard Time</TimeZone>
             <RegisteredOwner/>
         </component>
