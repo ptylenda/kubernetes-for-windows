@@ -15,7 +15,7 @@ win_docker_provider: "DockerMsftProvider"
 # https://github.com/OneGet/MicrosoftDockerProvider 
 
 # https://dockermsft.blob.core.windows.net/dockercontainer/DockerMsftIndex.json
-win_docker_version: "17.03.2-ee-5"  # "17.06.2-ee-6" "17.06.2-ee-8" "17.10.0-ee-preview-3"
+win_docker_version: "17.06.2-ee-13"  # "17.06.2-ee-6" "17.06.2-ee-8" "17.10.0-ee-preview-3"
 win_docker_zip_filename: "docker-{{ win_docker_version }}.zip"
 win_docker_temp_dir: "/Users/{{ ansible_user }}/Appdata/Local/Temp/DockerMsftProvider"
 win_docker_zip_file: "{{ win_docker_temp_dir }}/{{ win_docker_zip_filename }}"
