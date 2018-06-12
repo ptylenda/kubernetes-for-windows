@@ -77,4 +77,5 @@
 
     - debug: msg={{ patch_kube_flannel_state.stderr_lines }}
       when: patch_kube_flannel_state is not skipped
+  when: kube_network_plugin == 'flannel'
   tags: init

@@ -122,12 +122,16 @@
 
 - name: Pull windowsservercore base image from Docker Hub
   win_shell: docker pull {{ docker_windowsservercore_image }}
+  when: win_docker_pull_images
 
 - name: Tag selected windowsservercore base image as latest
   win_shell: docker tag {{ docker_windowsservercore_image }} microsoft/windowsservercore:latest
+  when: win_docker_pull_images
 
 - name: Pull nanoserver base image from Docker Hub
   win_shell: docker pull {{ docker_nanoserver_image }}
+  when: win_docker_pull_images
 
 - name: Tag selected nanoserver base image as latest
   win_shell: docker tag {{ docker_nanoserver_image }} microsoft/nanoserver:latest
+  when: win_docker_pull_images
