@@ -58,8 +58,10 @@
     register: install_docker_package_state
 
   # I had to perform the installation in this way to have it installed properly
+  # Run with fixes for https://github.com/OneGet/MicrosoftDockerProvider/issues/15
+  # TODO: Add step to install with proxy
   - name: Install docker from msft
-    script: install_docker_msft.ps1 -RequiredVersion "{{ win_docker_version }}"
+    script: install_docker_msft.ps1 -RequiredVersion "{{ win_docker_version }}" -ZipNameVersion "{{ win_docker_zip_filename }}"
     when: win_docker_provider == 'DockerMsftProvider'
     register: install_docker_package_state
 

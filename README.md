@@ -13,6 +13,7 @@
 - Exposing NodePort services on both Windows and Linux nodes.
 - Packer templates with Ansible support which can be executed on Windows hosts, thanks to Powershell wrappers for Ansible commands ([ptylenda/ansible-for-windows-wsl-powershell-fall-creators-update](https://github.com/ptylenda/ansible-for-windows-wsl-powershell-fall-creators-update)). Similar solution was used in demo Packer template in [ptylenda/packer-template-ubuntu1604-ansible-proxy](https://github.com/ptylenda/packer-template-ubuntu1604-ansible-proxy).
 - Provisioning and configuration behind a proxy.
+- Workaround for https://github.com/OneGet/MicrosoftDockerProvider/issues/15 by pablodav.
 
 Ansible playbooks provided in this repository have been initially based on the official Microsoft [Getting Started](https://docs.microsoft.com/en-us/virtualization/windowscontainers/kubernetes/getting-started-kubernetes-windows) guide for Kubernetes on Windows. Most of the original scripts in this guide have been replaced by Ansible tasks and NSSM windows services, and on top of that experimental Flannel support with host-gw backend has been added.
 
