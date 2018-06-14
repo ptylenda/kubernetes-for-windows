@@ -79,3 +79,31 @@
       when: patch_kube_flannel_state is not skipped
   when: kube_network_plugin == 'flannel'
   tags: init
+
+- name: Apply calico-node nodeselector
+  block:
+    - name: Copy calico-node daemonset nodeselector patch
+      copy:
+        src: nodeselector-os-linux-patch.json
+        dest: "{{ kubernetes_user_manifests_path }}/nodeselector-os-linux-patch.json"
+
+    # Due to https://github.com/kubernetes/kubernetes/issues/58212 we cannot rely on exit code for "kubectl patch"
+    - name: Check current nodeselector for calico-node daemonset
+      shell: kubectl get ds calico-node --namespace=kube-system -o jsonpath='{.spec.template.spec.nodeSelector.beta\.kubernetes\.io/os}'
+      register: current_kube_calico_state
+
+    - name: Apply nodeselector patch for calico-node daemonset
+      shell: kubectl patch ds calico-node --namespace=kube-system --type=strategic -p "$(cat nodeselector-os-linux-patch.json)"
+      args:
+        chdir: "{{ kubernetes_user_manifests_path }}"
+      register: patch_kube_calico_state
+      when: current_kube_calico_state.stdout | trim | lower != "linux"
+
+    - debug: msg={{ patch_kube_calico_state.stdout_lines }}
+      when: patch_kube_calico_state is not skipped
+
+    - debug: msg={{ patch_kube_calico_state.stderr_lines }}
+      when: patch_kube_calico_state is not skipped
+  when: kube_network_plugin == 'calico'
+  tags: init
+
