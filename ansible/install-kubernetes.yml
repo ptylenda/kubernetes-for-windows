@@ -36,5 +36,6 @@
         name: windows/kubernetes-node
       tags:
         - windows::requirements
+        - windows::node
     - import_role:
         name: windows/flannel

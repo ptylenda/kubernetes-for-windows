@@ -6,11 +6,40 @@
     recurse: yes
   tags: cni
 
+- name: force remove current download version - force reinstall
+  win_file:
+    path: "{{ download_temp_path }}/{{ cni_package_file }}"
+    state: absent
+  when: cni_force_reinstall
+
+- name: check if cni file is downloaded
+  win_stat:
+    path: "{{ download_temp_path }}/{{ cni_package_file }}"
+  register: cni_stat_package_file_info
+
+# Download with win_get_url will fail if CPU is 100% with other processes
 - name: Download CNI package with host-gw and flannel support on windows
   win_get_url:
     url: "{{ cni_package_url }}"
-    dest: "{{ download_temp_path }}/cni.tar.gz"
-    force: no
+    dest: "{{ download_temp_path }}/{{ cni_package_file }}"
+    force: no # url doesn't support head check
+    use_proxy: no
+    # validate_certs: no # only use if some error with ssl
+  when: not configure_proxy and not cni_stat_package_file_info.stat.exists
+  tags: cni
+
+- name: Download CNI package with host-gw and flannel support on windows with proxy
+  win_get_url:
+    url: "{{ cni_package_url }}"
+    dest: "{{ download_temp_path }}/{{ cni_package_file }}"
+    force: yes # url doesn't support head check
+    proxy_url: "{{ win_choco_proxy_url }}"
+    proxy_username: "{{ win_choco_proxy_username }}"
+    proxy_password: "{{ win_choco_proxy_password }}"
+    timeout: 120
+    use_proxy: yes
+    # validate_certs: no # only use if some error with ssl
+  when: configure_proxy and not cni_stat_package_file_info.stat.exists
   tags: cni
 
 - name: Ensure that unzip temporary directory exists
@@ -49,15 +78,10 @@
 #  with_items: "{{ cni_find_state.files }}"
 
 - name: Unzip CNI package
-  win_shell: 7z x "{{ download_temp_path }}/cni.tar.gz" -so | 7z x -aoa -si -ttar -o"{{ unzip_temp_path }}"
+  win_shell: 7z x "{{ download_temp_path }}/{{ cni_package_file }}" -so | 7z x -aoa -si -ttar -o"{{ unzip_temp_path }}"
   args:
     executable: cmd  # Required as powershell provides unwanted buffering
-  tags: cni
-
-- name: Delete CNI package archive
-  win_file:
-    path: "{{ download_temp_path }}/cni.tar.gz"
-    state: absent
+  when: not cni_stat_package_file_info.stat.exists # only if new version is downloaded
   tags: cni
 
 - name: Ensure that CNI installation directory exists
@@ -65,6 +89,7 @@
     path: "{{ cni_installation_path }}"
     state: directory
     recurse: yes
+  when: not cni_stat_package_file_info.stat.exists # only if new version is downloaded
   tags: cni
     
 - name: Copy CNI plugins to destination directory
@@ -72,13 +97,7 @@
     remote_src: yes
     src: "{{ unzip_temp_path }}/windows/"
     dest: "{{ cni_installation_path }}"
-  tags: cni
-
-- name: Delete temporary unzip directory
-  win_file:
-    path: "{{ unzip_temp_path }}"
-    state: absent
-    recurse: yes
+  when: not cni_stat_package_file_info.stat.exists # only if new version is downloaded
   tags: cni
 
 - name: Ensure that CNI config directory exists
