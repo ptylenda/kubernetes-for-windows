@@ -13,7 +13,7 @@
 
 - name: Ensure that any old instance of kubelet and kube-proxy is stopped
   win_service:
-    name: flanneld
+    name: "{{ item }}"
     state: stopped
     force_dependent_services: yes
   with_items:
