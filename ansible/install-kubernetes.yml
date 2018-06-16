@@ -39,3 +39,4 @@
         - windows::node
     - import_role:
         name: windows/flannel
+      when: kube_network_plugin == 'flannel'

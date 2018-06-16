@@ -13,6 +13,7 @@
 - name: Check if docker is already installed
   win_shell: (Get-Package -Name Docker -ProviderName {{ win_docker_provider }}).Version
   ignore_errors: yes
+  changed_when: false
   register: check_docker_package_state
 
 - block:

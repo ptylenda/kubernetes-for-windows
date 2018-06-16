@@ -31,10 +31,20 @@
             name: "{{ item }}"
             state: stopped
             force_dependent_services: yes
+            start_mode: manual
           with_items:
-            - flanneld
             - kube-proxy
             - kubelet
+
+        - name: Ensure that flanneld services are stopped on windows nodes
+          win_service:
+            name: "{{ item }}"
+            state: stopped
+            force_dependent_services: yes
+            start_mode: disabled
+          with_items:
+            - flanneld
+          when: kube_network_plugin == 'flannel'
 
         - name: Execute cleanup scripts
           win_shell: kube-cleanup.ps1
