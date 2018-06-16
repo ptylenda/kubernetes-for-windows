@@ -1,4 +1,16 @@
 ---
+
+- name: force remove current kube download version - force reinstall
+  win_file:
+    path: "{{ download_temp_path }}/{{ kubernetes_package_file }}"
+    state: absent
+  when: win_kube_force_reinstall
+
+- name: check if kubernetes file is downloaded
+  win_stat:
+    path: "{{ download_temp_path }}/{{ kubernetes_package_file }}"
+  register: kube_stat_package_file_info
+
 - name: Ensure that any old instance of kubelet and kube-proxy is stopped
   win_service:
     name: flanneld
@@ -45,14 +57,30 @@
 - name: Download kubernetes build
   win_get_url:
     url: "{{ kubernetes_package_url }}"
-    dest: "{{ download_temp_path }}/kubernetes.tar.gz"
+    dest: "{{ download_temp_path }}/{{ kubernetes_package_file }}"
     force: yes
+    use_proxy: no
+  when: not configure_proxy and not kube_stat_package_file_info.stat.exists # download only if not exist or force is provided
+
+- name: Download kubernetes build with proxy
+  win_get_url:
+    url: "{{ kubernetes_package_url }}"
+    dest: "{{ download_temp_path }}/{{ kubernetes_package_file }}"
+    force: yes
+    proxy_url: "{{ win_choco_proxy_url }}"
+    proxy_username: "{{ win_choco_proxy_username }}"
+    proxy_password: "{{ win_choco_proxy_password }}"
+    timeout: 120
+    use_proxy: yes
+    # validate_certs: no # only use if some error with ssl
+  when: configure_proxy and not kube_stat_package_file_info.stat.exists
 
 - name: Ensure that unzip temporary directory exists
   win_file:
     path: "{{ unzip_temp_path }}"
     state: directory
     recurse: yes
+  when: not kube_stat_package_file_info.stat.exists
 
 # Unzipping tar.gz on windows host is rather clumsy. Another option is to use 7zip directly as in: https://stackoverflow.com/questions/1359793/programmatically-extract-tar-gz-in-a-single-step-on-windows-with-7zip
 #- name: Unzip kubernetes gz package 
@@ -75,14 +103,15 @@
 #  with_items: "{{ kubernetes_find_state.files }}"
 
 - name: Unzip kubernetes package
-  win_shell: 7z x "{{ download_temp_path }}/kubernetes.tar.gz" -so | 7z x -aoa -si -ttar -o"{{ unzip_temp_path }}"
+  win_shell: 7z x "{{ download_temp_path }}/{{ kubernetes_package_file }}" -so | 7z x -aoa -si -ttar -o"{{ unzip_temp_path }}"
   args:
     executable: cmd  # Required as powershell provides unwanted buffering
+  when: not kube_stat_package_file_info.stat.exists # only if upgrade / install or force is provided
 
-- name: Delete kubernetes package archive
-  win_file:
-    path: "{{ download_temp_path }}/kubernetes.tar.gz"
-    state: absent
+#- name: Delete kubernetes package archive
+#  win_file:
+#    path: "{{ download_temp_path }}/kubernetes.tar.gz"
+#    state: absent
 
 - name: Ensure that kubernetes installation directory exists
   win_file:
@@ -95,6 +124,7 @@
     remote_src: yes
     src: "{{ unzip_temp_path }}/kubernetes/node/bin/"
     dest: "{{ kubernetes_installation_path }}"
+  when: not kube_stat_package_file_info.stat.exists # only if upgrade / install or force is provided
 
 - name: Delete temporary unzip directory
   win_file:

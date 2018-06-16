@@ -1,4 +1,4 @@
 ---
 
 kubernetes_user_manifests_path: "{{ ansible_env.HOME }}/kube-manifests"
-kubernetes_deploy_dashboard: True
+kube_network_plugin: 'flannel'

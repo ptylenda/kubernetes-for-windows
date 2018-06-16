@@ -13,6 +13,7 @@
 - name: Check if docker is already installed
   win_shell: (Get-Package -Name Docker -ProviderName {{ win_docker_provider }}).Version
   ignore_errors: yes
+  changed_when: false
   register: check_docker_package_state
 
 - block:
@@ -58,8 +59,10 @@
     register: install_docker_package_state
 
   # I had to perform the installation in this way to have it installed properly
+  # Run with fixes for https://github.com/OneGet/MicrosoftDockerProvider/issues/15
+  # TODO: Add step to install with proxy
   - name: Install docker from msft
-    script: install_docker_msft.ps1 -RequiredVersion "{{ win_docker_version }}"
+    script: install_docker_msft.ps1 -RequiredVersion "{{ win_docker_version }}" -ZipNameVersion "{{ win_docker_zip_filename }}"
     when: win_docker_provider == 'DockerMsftProvider'
     register: install_docker_package_state
 
@@ -122,12 +125,16 @@
 
 - name: Pull windowsservercore base image from Docker Hub
   win_shell: docker pull {{ docker_windowsservercore_image }}
+  when: win_docker_pull_images
 
 - name: Tag selected windowsservercore base image as latest
   win_shell: docker tag {{ docker_windowsservercore_image }} microsoft/windowsservercore:latest
+  when: win_docker_pull_images
 
 - name: Pull nanoserver base image from Docker Hub
   win_shell: docker pull {{ docker_nanoserver_image }}
+  when: win_docker_pull_images
 
 - name: Tag selected nanoserver base image as latest
   win_shell: docker tag {{ docker_nanoserver_image }} microsoft/nanoserver:latest
+  when: win_docker_pull_images

@@ -1,9 +1,14 @@
 ---
-cni_package_url: "https://github.com/ptylenda/plugins/releases/download/v0.7.0-rc2-win-fix/cni-plugins-amd64-v0.7.0-rc2-win-fix.tgz"
+cni_package_version: 'v0.7.0-rc2-win-fix'
+cni_package_file: "cni_plugins_amd64_v0.7.0_rc2_win_fix.tgz"
+cni_package_url: "https://github.com/ptylenda/plugins/releases/download/{{ cni_package_version }}/cni-plugins-amd64-{{ cni_package_version }}.tgz"
 cni_installation_path: "C:/k/cni/"
 cni_config_path: "C:/k/cni/config/"
+cni_force_reinstall: false
 download_temp_path: "C:/Temp/"
-unzip_temp_path: "C:/Temp/cni/"
+unzip_temp_path: "C:/Temp/cni_plugins_amd64_v0.7.0_rc2_win_fix/"
 
 kubernetes_cluster_dns: "10.96.0.10"
 kubernetes_cluster_domain: "cluster.local"
+
+configure_proxy: false

@@ -6,6 +6,10 @@ kubernetes_cluster_domain: "{{ cluster_name }}"  # same as kubespray cluster_nam
 
 kubernetes_reset_master: False
 
+# Choose network plugin ( calico, flannel)
+# Can also be set to 'cloud', which lets the cloud provider setup appropriate routing
+# kube_network_plugin: flannel
+
 # There vars are now set on all-k8s.yml
 #http_proxy: ""  # Define your proxy here
 #https_proxy: ""  # Define your proxy here

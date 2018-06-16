@@ -4,7 +4,7 @@
 **NOTE: work in progress - Kubernetes networking heavily relies on Windows HNS which is still unstable.**
 
 [Ansible](https://www.ansible.com/) playbooks and [Packer](https://www.packer.io/) templates for provisioning of Hyper-V [Vagrant](https://www.vagrantup.com/) boxes and configuration of hybrid Kubernetes 1.10+ cluster with Flannel network (host-gw backend). Currently supports:
-- Windows Server 1709 (Jan 2018) as Kubernetes nodes with Docker 17.10.0-ee-preview-3.
+- Windows Server 1803 (March 2018) as Kubernetes nodes with Docker 17.10.0-ee-preview-3.
 - Ubuntu 16.04 LTS (Xenial) as Kubernetes master and nodes with Docker 17.03.
 - Cluster initialization using [kubeadm](https://kubernetes.io/docs/setup/independent/create-cluster-kubeadm/) (both Windows and Linux nodes).
 - Flannel pod network, host-gw backend (vxlan can be also installed, requires changes in network deployment file and installation of CNI plugins on Windows). Based on https://github.com/coreos/flannel/pull/921 and https://github.com/containernetworking/plugins/pull/85 by [rakelkar](https://github.com/rakelkar).
@@ -13,6 +13,7 @@
 - Exposing NodePort services on both Windows and Linux nodes.
 - Packer templates with Ansible support which can be executed on Windows hosts, thanks to Powershell wrappers for Ansible commands ([ptylenda/ansible-for-windows-wsl-powershell-fall-creators-update](https://github.com/ptylenda/ansible-for-windows-wsl-powershell-fall-creators-update)). Similar solution was used in demo Packer template in [ptylenda/packer-template-ubuntu1604-ansible-proxy](https://github.com/ptylenda/packer-template-ubuntu1604-ansible-proxy).
 - Provisioning and configuration behind a proxy.
+- Workaround for https://github.com/OneGet/MicrosoftDockerProvider/issues/15 by pablodav.
 
 Ansible playbooks provided in this repository have been initially based on the official Microsoft [Getting Started](https://docs.microsoft.com/en-us/virtualization/windowscontainers/kubernetes/getting-started-kubernetes-windows) guide for Kubernetes on Windows. Most of the original scripts in this guide have been replaced by Ansible tasks and NSSM windows services, and on top of that experimental Flannel support with host-gw backend has been added.
 
@@ -55,7 +56,7 @@ Ansible only:
 2. Ubuntu for Windows (WSL) installed.
 3. Ansible 2.5.0+ installed on Ubuntu for Windows (pip installation recommended).
 4. Additional python packages installed for WinRM (follow [Ansible Windows Setup Guide](http://docs.ansible.com/ansible/2.5/user_guide/windows_setup.html)).
-5. Windows Server 1709 (Jan 2018) installed on Windows Kubernetes nodes.
+5. Windows Server 1803 (March 2018) installed on Windows Kubernetes nodes.
 6. WinRM properly configured on Windows Kubernetes nodes.
 7. Ubuntu 16.04 LTS (Xenial) installed on Linux master and nodes.
 
@@ -276,11 +277,11 @@ Actually it needs review, to integrate kubespray so it is not working as it was 
 
 For easier usage of Packer with Ansible Remote provisoner on Windows, an additional wrapper script has been provided: [packer-ansible-windows.ps1](packer/windows/packer-ansible-windows.ps1). Basically it adds Ansible wrappers to PATH and ensures that proxy settings are configured properly.
 
-ISO files are expected to be loaded from ``./iso`` subdirectory in packer build space. For Ubuntu it is also possible to download the image automatically from the official http server. For Windows you have to provide your own copy of Windows Server 1709 ISO.
+ISO files are expected to be loaded from ``./iso`` subdirectory in packer build space. For Ubuntu it is also possible to download the image automatically from the official http server. For Windows you have to provide your own copy of Windows Server 1803 ISO.
 
 To build Windows node on Hyper-V:
 
-	$  .\packer-ansible-windows.ps1 build --only=hyperv-iso .\kubernetes-node-windows1709-jan2018.json
+	$  .\packer-ansible-windows.ps1 build --only=hyperv-iso .\kubernetes-node-windows1803-march2018.json
 
 Default user: ubuntu
 

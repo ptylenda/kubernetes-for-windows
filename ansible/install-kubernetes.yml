@@ -22,11 +22,21 @@
   tasks:
     - import_role:
         name: windows/common
+      tags:
+        - windows::requirements
     - import_role:
         name: windows/docker
+      tags:
+        - windows::requirements
     - import_role:
         name: windows/cni
+      tags:
+        - windows::requirements
     - import_role:
         name: windows/kubernetes-node
+      tags:
+        - windows::requirements
+        - windows::node
     - import_role:
         name: windows/flannel
+      when: kube_network_plugin == 'flannel'
