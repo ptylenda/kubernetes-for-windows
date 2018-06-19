@@ -1,5 +1,7 @@
 ---
-# These are old sample without kubespray integration, see inventory/group_vars for more information
+# These are old sample without kubespray integration, see inventory/group_vars for updates structure
+# do not use it for kubespray integration.
+# Check inventory/group_vars for updated information
 kubernetes_master_ip: "{{ hostvars[groups['master-ubuntu'][0]]['ansible_default_ipv4']['address'] }}"
 kubernetes_pod_network_cidr: "10.200.0.0/16"
 kubernetes_cluster_dns: "10.201.0.10"

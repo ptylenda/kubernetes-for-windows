@@ -6,7 +6,8 @@ kubernetes_cluster_domain: "{{ cluster_name }}"  # same as kubespray cluster_nam
 
 kubernetes_reset_master: False
 
-# Choose network plugin ( calico, flannel)
+# Choose network plugin ( calico, flannel, ovn)
+# For now only flannel works in kubernetes-for-windows
 # Can also be set to 'cloud', which lets the cloud provider setup appropriate routing
 # kube_network_plugin: flannel
 
@@ -28,7 +29,7 @@ win_choco_proxy_username: ""
 win_choco_proxy_password: ""
 
 # Set True when you want common/ubuntu to disable swap if preset
-# Or disable swap manually
+# Or disable swap manually (You must disable swap)
 k8s_linux_disable_swap: False
 
 # Use this var if you are going to enable Hype-V isolated containers features
