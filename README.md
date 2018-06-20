@@ -377,3 +377,10 @@ Service start order matters, in some tests I (pablodav) have confirmed that this
 4. flanneld
 
 For that reason I have added serialized dependencies on nssm service config on tasks.
+
+Publish services on Premises
+============================
+
+Use this model for on-premises:
+
+https://medium.com/@kyralak/accessing-kubernetes-services-without-ingress-nodeport-or-loadbalancer-de6061b42d72
