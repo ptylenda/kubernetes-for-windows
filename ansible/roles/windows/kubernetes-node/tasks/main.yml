@@ -13,7 +13,7 @@
 
 - name: Ensure that any old instance of kubelet and kube-proxy is stopped
   win_service:
-    name: flanneld
+    name: "{{ item }}"
     state: stopped
     force_dependent_services: yes
   with_items:
@@ -212,7 +212,7 @@
         stderr_file: "{{ kube_proxy_log_path }}/{{ kube_proxy_service_name }}-stderr.log"
         state: present
         start_mode: auto
-        #dependencies: kubelet,docker  # latest NSSM throws a lot of errors when used with ansible and multiple dependencies
+        dependencies: "{{ kubelet_service_name }}"  # latest NSSM throws a lot of errors when used with ansible and multiple dependencies
 
     - name: Set kube-proxy service restart delay for short executions
       win_shell: "nssm set {{ kube_proxy_service_name }} AppThrottle 1500"
@@ -221,7 +221,7 @@
       win_shell: "nssm set {{ kube_proxy_service_name }} AppExit Default Restart"
 
     - name: Set kube-proxy service restart delay in case of failure
-      win_shell: "nssm set {{ kube_proxy_service_name }} AppRestartDelay 1000"
+      win_shell: "nssm set {{ kube_proxy_service_name }} AppRestartDelay 2000"
 
     - name: Set kube-proxy service to not overwrite stdout file
       win_shell: "nssm set {{ kube_proxy_service_name }} AppStdoutCreationDisposition 4"
@@ -229,11 +229,11 @@
     - name: Set kube-proxy service to not overwrite stderr file
       win_shell: "nssm set {{ kube_proxy_service_name }} AppStderrCreationDisposition 4"
 
-    - name: Set kube-proxy service dependency on docker
-      win_shell: "nssm set {{ kube_proxy_service_name }} DependOnService :Docker"
+    #- name: Set kube-proxy service dependency on docker
+    #  win_shell: "nssm set {{ kube_proxy_service_name }} DependOnService :Docker"
 
-    - name: Set kube-proxy service dependency on kubelet
-      win_shell: "nssm set {{ kube_proxy_service_name }} DependOnService +kubelet"
+    #- name: Set kube-proxy service dependency on kubelet
+    #  win_shell: "nssm set {{ kube_proxy_service_name }} DependOnService +kubelet"
 
 - name: Copy cleanup scripts
   win_copy:
