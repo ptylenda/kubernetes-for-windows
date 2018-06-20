@@ -10,7 +10,7 @@ kubelet_log_path: "C:/var/log/"
 kubelet_service_name: kubelet
 
 kube_proxy_log_path: "C:/var/log/"
-kube_proxy_service_name: kube-proxy
+kube_proxy_service_name: kube-proxy 
 
 download_temp_path: "C:/Temp/"
 unzip_temp_path: "C:/Temp/kubernetes/"

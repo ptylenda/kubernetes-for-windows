@@ -125,7 +125,7 @@
         stderr_file: "{{ flannel_log_path }}/{{ flannel_service_name }}-stderr.log"
         state: present
         start_mode: auto
-        #dependencies: kubelet,docker  # latest NSSM throws a lot of errors when used with ansible and multiple dependencies. Defining them manually below
+        dependencies: "{{ kube_proxy_service_name }}"  # latest NSSM throws a lot of errors when used with ansible and multiple dependencies. Defining them manually below
 
     - name: Set flannel service restart delay for short executions
       win_shell: "nssm set {{ flannel_service_name }} AppThrottle 1500"
@@ -134,7 +134,7 @@
       win_shell: "nssm set {{ flannel_service_name }} AppExit Default Restart"
 
     - name: Set flannel service restart delay in case of failure
-      win_shell: "nssm set {{ flannel_service_name }} AppRestartDelay 1000"
+      win_shell: "nssm set {{ flannel_service_name }} AppRestartDelay 5000"
 
     - name: Set flannel service to not overwrite stdout file
       win_shell: "nssm set {{ flannel_service_name }} AppStdoutCreationDisposition 4"
@@ -142,9 +142,11 @@
     - name: Set flannel service to not overwrite stderr file
       win_shell: "nssm set {{ flannel_service_name }} AppStderrCreationDisposition 4"
 
-    - name: Set flannel service dependency on docker
-      win_shell: "nssm set {{ flannel_service_name }} DependOnService :Docker"
+    #- name: Set flannel service dependency on docker
+    #  win_shell: "nssm set {{ flannel_service_name }} DependOnService :Docker"
 
-    - name: Set flannel service dependency on kubelet
-      win_shell: "nssm set {{ flannel_service_name }} DependOnService +kubelet"
+    #- name: Set flannel service dependency on kubelet
+    #  win_shell: "nssm set {{ flannel_service_name }} DependOnService +kubelet"
+    #- name: Set flannel service dependency on kubelet
+    #  win_shell: "nssm set {{ flannel_service_name }} DependOnService +kube-proxy"      
   tags: cni

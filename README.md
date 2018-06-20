@@ -362,3 +362,18 @@ In case of doubt with windows defender, disable it temporarly:
 ```shell
 Set-MpPreference -DisableRealtimeMonitoring $true
 ```
+
+Some other troubleshooting tweaks
+=================================
+
+Networking with kube-proxy and flanneld services
+------------------------------------------------
+
+Service start order matters, in some tests I (pablodav) have confirmed that this order is required to get all network devices and IP addresses created during start:
+
+1. docker
+2. kubelet
+3. kube-proxy
+4. flanneld
+
+For that reason I have added serialized dependencies on nssm service config on tasks.
