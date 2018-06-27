@@ -23,3 +23,4 @@ win_choco_proxy_username: ""
 win_choco_proxy_password: ""
 
 microsoft_sdn_repo_path: "C:/SDN"
+win_common_install_updates: true
