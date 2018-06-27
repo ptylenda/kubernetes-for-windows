@@ -52,6 +52,14 @@
 #    win_shell: Get-FileHash -Path {{ win_docker_zip_file }} -Algorithm SHA256
 #    changed_when: false
 #    when: win_docker_provider == 'DockerMsftProvider'
+  - name: Ensure that any old instance of docker is stopped
+    win_service:
+      name: "{{ item }}"
+      state: stopped
+      force_dependent_services: yes
+    with_items:
+      - docker
+    ignore_errors: yes
 
   - name: Install docker
     win_shell: Install-Package Docker -ProviderName {{ win_docker_provider }} -Force -RequiredVersion "{{ win_docker_version }}"

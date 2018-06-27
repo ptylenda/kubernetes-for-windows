@@ -18,7 +18,7 @@
     force_dependent_services: yes
   with_items:
     - kubelet
-    - kubeproxy
+    - kube-proxy
   ignore_errors: yes
 
 - name: Build pause image for kubelet

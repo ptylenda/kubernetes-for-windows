@@ -1,7 +1,7 @@
 
 param (
-  [string]$RequiredVersion = '17.06.2-ee-14',
-  [string]$ZipNameVersion = 'docker-17-06-2-ee-14.zip'
+  [string]$RequiredVersion = '17.06.2-ee-13',
+  [string]$ZipNameVersion = 'docker-17-06-2-ee-13.zip'
 )
 
 # TODO: add proxy option and Install-Package with proxy settings
@@ -17,12 +17,9 @@ $downloadURL = "https://dockermsft.blob.core.windows.net/dockercontainer/$($ZipN
 $destination = "$env:TEMP\DockerMsftProvider\$($ZipNameVersion)"
 # if there is CPU usage high it will fail
 # try stopping kubelet kube-proxy and flanneld before going to download this.
-try {
-  Stop-Service docker -Force
-} catch {
-  Write-Output "couldn't stop docker"
-}
-Invoke-WebRequest -Uri $downloadURL -OutFile $destination
+#Invoke-WebRequest -Uri $downloadURL -OutFile $destination
+#Write-Host "File downloaded: $destination"
+Write-Host "Installing with: Install-Package Docker -ProviderName DockerMsftProvider -Confirm -RequiredVersion $RequiredVersion -Verbose -ForceBootstrap"
 Install-Package Docker -ProviderName DockerMsftProvider -Confirm -RequiredVersion $RequiredVersion -Verbose -ForceBootstrap
 
 # TODO: convert it as an ansible module
