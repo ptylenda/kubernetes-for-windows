@@ -24,4 +24,3 @@ docker_images_repo_path: "C:/Images"
 
 configure_proxy: false
 win_kube_force_reinstall: false
-win_disable_firewall: true
