@@ -7,17 +7,6 @@
   ignore_errors: yes
   tags: cni
 
-# Temporal workaround until we do find correct rules
-- name: Ensure that Windows Firewall is stopped
-  win_service:
-    name: mpssvc
-    state: stopped
-    force_dependent_services: yes
-    start_mode: disabled
-  ignore_errors: yes
-  when: win_disable_firewall
-  tags: cni
-
 - name: Ensure that download temporary kubernetes directory exists
   win_file:
     path: "{{ download_temp_path }}"

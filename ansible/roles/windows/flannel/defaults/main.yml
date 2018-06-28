@@ -13,4 +13,3 @@ kubernetes_pod_network_cidr: "10.244.0.0/16"
 kubernetes_config_path: "C:/etc/kubernetes/kubelet.conf"
 
 kube_proxy_service_name: kube-proxy # used as dependency on flanneld service
-win_disable_firewall: true
