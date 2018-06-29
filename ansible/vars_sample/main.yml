@@ -1,0 +1,34 @@
+---
+# These are old sample without kubespray integration, see inventory/group_vars for more information
+kubernetes_master_ip: "{{ hostvars[groups['master-ubuntu'][0]]['ansible_default_ipv4']['address'] }}"
+kubernetes_pod_network_cidr: "10.200.0.0/16"
+kubernetes_cluster_dns: "10.201.0.10"
+kubernetes_cluster_domain: "cluster.local"
+
+kubernetes_reset_master: False
+
+http_proxy: ""  # Define your proxy here
+https_proxy: ""  # Define your proxy here
+no_proxy: "{{ kubernetes_master_ip }},{{ kubernetes_pod_network_cidr }}"
+configure_proxy: "{{ True if http_proxy or https_proxy else False }}" # If you had proxy and then removed, you need True here
+
+env_vars:
+  HTTP_PROXY: "{{ http_proxy }}"
+  HTTPS_PROXY: "{{ https_proxy }}"
+  NO_PROXY: "{{ no_proxy }}"
+
+# When using proxy you will need also:
+# http://docs.ansible.com/ansible/latest/modules/win_chocolatey_module.html#examples
+win_choco_proxy_url: ""
+win_choco_proxy_username: ""
+win_choco_proxy_password: ""
+
+# roles/ubuntu/docker/tasks adds to docker group
+docker_user: "{{ ansible_user }}"
+
+# Set True when you want common/ubuntu to disable swap if preset
+# Or disable swap manually
+k8s_linux_disable_swap: False
+
+# Use this var if you are going to enable Hype-V isolated containers features
+win_docker_enable_hyperv: False

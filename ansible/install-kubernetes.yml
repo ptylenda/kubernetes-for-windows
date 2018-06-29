@@ -1,6 +1,6 @@
 ---
 - name: Gather all facts
-  hosts: all
+  hosts: master-ubuntu
   gather_facts: no
   pre_tasks:
     - import_role:
@@ -9,24 +9,14 @@
 - name: Install kubernetes on ubuntu nodes 
   hosts: all-ubuntu
   become: yes
-  vars_files:
-    - vars/main.yml
   environment: "{{ env_vars|default({}) }}"
   gather_facts: no
   tasks:
     - import_role:
         name: ubuntu/common
-    - import_role:
-        name: ubuntu/docker
-    - import_role:
-        name: ubuntu/cni
-    - import_role:
-        name: ubuntu/kubernetes-node
 
 - name: Install kubernetes on windows nodes 
   hosts: node-windows
-  vars_files:
-    - vars/main.yml
   environment: "{{ env_vars|default({}) }}"
   gather_facts: no
   tasks:

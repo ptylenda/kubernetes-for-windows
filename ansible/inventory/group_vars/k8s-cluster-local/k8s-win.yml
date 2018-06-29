@@ -1,0 +1,31 @@
+---
+kubernetes_master_ip: "{{ hostvars[groups['master-ubuntu'][0]]['ansible_default_ipv4']['address'] }}"
+kubernetes_pod_network_cidr: "{{ kube_pods_subnet }}"  # same as kubespray kube_pods_subnet
+kubernetes_cluster_dns: "10.233.0.3" # check this out: kubectl describe service -n kube-system kube-dns
+kubernetes_cluster_domain: "{{ cluster_name }}"  # same as kubespray cluster_name
+
+kubernetes_reset_master: False
+
+# There vars are now set on all-k8s.yml
+#http_proxy: ""  # Define your proxy here
+#https_proxy: ""  # Define your proxy here
+#no_proxy: "localhost,127.0.0.1,.local.domain,10.3.0.1,10.3.0.2,10.3.0.4,10.3.0.5,10.3.0.6" # no_proxy for subnets is ignored
+configure_proxy: "{{ True if http_proxy or https_proxy else False }}" # If you had proxy and then removed, you need True here
+
+env_vars:
+  HTTP_PROXY: "{{ http_proxy }}"
+  HTTPS_PROXY: "{{ https_proxy }}"
+  NO_PROXY: "{{ no_proxy }}"
+
+# When using proxy you will need also:
+# http://docs.ansible.com/ansible/latest/modules/win_chocolatey_module.html#examples
+win_choco_proxy_url: ""
+win_choco_proxy_username: ""
+win_choco_proxy_password: ""
+
+# Set True when you want common/ubuntu to disable swap if preset
+# Or disable swap manually
+k8s_linux_disable_swap: False
+
+# Use this var if you are going to enable Hype-V isolated containers features
+win_docker_enable_hyperv: False

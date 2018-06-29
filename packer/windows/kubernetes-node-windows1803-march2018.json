@@ -1,0 +1,135 @@
+{
+  "variables": {
+    "autounattend": "Autounattend.xml",
+    "cpu": "2",
+    "disable_winrm_after_provisioning": "false",
+    "disk_size": "61440",
+    "disk_type_id": "1",
+    "ftp_proxy": "{{env `ftp_proxy` }}",
+    "headless": "false",
+    "http_proxy": "{{env `http_proxy` }}",
+    "https_proxy": "{{env `https_proxy` }}",
+    "hyperv_switchname": "{{env `hyperv_switchname` }}",
+    "iso_checksum": "a36ed11d4622e5d975447cc20502619469b0c415",
+    "iso_checksum_type": "sha1",
+    "iso_url": "./iso/SW_DVD9_Win_Server_STD_CORE_1803_64Bit_English_-2_DC_STD_MLF_X21-79707.iso",
+    "no_proxy": "{{env `no_proxy` }}",
+    "ram_size": "4096",
+    "vm_name": "packer-kubernetes-node-windows1803"
+  },
+  "builders": [
+    {
+      "boot_wait": "60s",
+      "communicator": "winrm",
+      "cpu": "{{ user `cpu` }}",
+      "disk_size": "{{user `disk_size`}}",
+      "enable_dynamic_memory": false,
+      "enable_mac_spoofing": true,
+      "enable_secure_boot": true,
+      "enable_virtualization_extensions": true,
+      "floppy_files": [
+        "./http/{{user `autounattend`}}",
+        "./scripts/01_initialize.bat",
+        "./scripts/02_ConfigureRemotingForAnsible.ps1",
+        "./scripts/03_enable-microsoft-updates.bat",
+        "./scripts/04_win-updates.ps1"
+      ],
+      "iso_checksum": "{{user `iso_checksum`}}",
+      "iso_checksum_type": "{{user `iso_checksum_type`}}",
+      "iso_urls": [
+        "{{ user `iso_url` }}"
+      ],
+      "output_directory": "output-hyperv-iso-{{user `vm_name`}}",
+      "ram_size": "{{ user `ram_size` }}",
+      "shutdown_command": "shutdown /s /t 10 /f /d p:4:1 /c \"Packer Shutdown\"",
+      "switch_name": "{{user `hyperv_switchname`}}",
+      "type": "hyperv-iso",
+      "vm_name": "{{user `vm_name`}}",
+      "winrm_insecure": true,
+      "winrm_password": "password",
+      "winrm_timeout": "4h",
+      "winrm_use_ntlm": true,
+      "winrm_use_ssl": true,
+      "winrm_username": "Administrator"
+    }
+  ],
+  "post-processors": [
+    {
+      "keep_input_artifact": true,
+      "output": "builds/{{.Provider}}-{{ user `vm_name`}}.box",
+      "type": "vagrant"
+    }
+  ],
+  "provisioners": [
+    {
+      "environment_vars": [
+        "FTP_PROXY={{ user `ftp_proxy` }}",     "ftp_proxy={{ user `ftp_proxy` }}",
+        "HTTPS_PROXY={{ user `https_proxy` }}", "https_proxy={{ user `https_proxy` }}",
+        "HTTP_PROXY={{ user `http_proxy` }}",   "http_proxy={{ user `http_proxy` }}",
+        "NO_PROXY={{ user `no_proxy` }}",       "no_proxy={{ user `no_proxy` }}"
+      ],
+      "execute_command": "{{ .Vars }} cmd /c \"{{ .Path }}\"",
+      "scripts": [
+        "./scripts/05_vm-guest-tools.bat",
+        "./scripts/06_enable-rdp.bat"
+      ],
+      "type": "windows-shell"
+    },
+    {
+      "environment_vars": [
+        "FTP_PROXY={{ user `ftp_proxy` }}",       "ftp_proxy={{ user `ftp_proxy` }}",
+        "HTTPS_PROXY={{ user `https_proxy` }}",   "https_proxy={{ user `https_proxy` }}",
+        "HTTP_PROXY={{ user `http_proxy` }}",     "http_proxy={{ user `http_proxy` }}",
+        "NO_PROXY={{ user `no_proxy` }}",         "no_proxy={{ user `no_proxy` }}"
+      ],
+      "scripts": [
+        "./scripts/07_debloat-windows.ps1"
+      ],
+      "type": "powershell"
+    },
+    {
+      "ansible_env_vars": [ "ANSIBLE_HOST_KEY_CHECKING=False" ],
+      "extra_arguments": [
+        "--connection", "packer",
+        "--extra-vars", "ansible_shell_type=powershell ansible_shell_executable=None",
+        "--extra-vars", "http_proxy={{ user `http_proxy` }} https_proxy={{ user `https_proxy` }} no_proxy={{ user `no_proxy` }} ftp_proxy={{ user `ftp_proxy` }}",
+        "-vvvvv"
+      ],
+      "groups": "node-windows",
+      "playbook_file": "../../ansible/install-kubernetes.yml",
+      "type": "ansible",
+      "user": "Administrator"
+    },
+    {
+      "restart_timeout": "5m",
+      "type": "windows-restart"
+    },
+    {
+      "environment_vars": [
+        "DISABLE_WINRM_AFTER_PROVISIONING={{ user `disable_winrm_after_provisioning` }}",
+        "FTP_PROXY={{ user `ftp_proxy` }}",       "ftp_proxy={{ user `ftp_proxy` }}",
+        "HTTPS_PROXY={{ user `https_proxy` }}",   "https_proxy={{ user `https_proxy` }}",
+        "HTTP_PROXY={{ user `http_proxy` }}",     "http_proxy={{ user `http_proxy` }}",
+        "NO_PROXY={{ user `no_proxy` }}",         "no_proxy={{ user `no_proxy` }}"
+      ],
+      "scripts": [
+        "./scripts/08_dotnet-regenerate-native-image-cache.ps1",
+        "./scripts/09_uac-enable.ps1"
+      ],
+      "type": "powershell"
+    },
+    {
+      "environment_vars": [
+        "FTP_PROXY={{ user `ftp_proxy` }}",       "ftp_proxy={{ user `ftp_proxy` }}",
+        "HTTPS_PROXY={{ user `https_proxy` }}",   "https_proxy={{ user `https_proxy` }}",
+        "HTTP_PROXY={{ user `http_proxy` }}",     "http_proxy={{ user `http_proxy` }}",
+        "NO_PROXY={{ user `no_proxy` }}",         "no_proxy={{ user `no_proxy` }}"
+      ],
+      "execute_command": "{{ .Vars }} cmd /c \"{{ .Path }}\"",
+      "scripts": [
+        "./scripts/11_compact.bat"
+      ],
+      "type": "windows-shell"
+    }
+  ]
+}

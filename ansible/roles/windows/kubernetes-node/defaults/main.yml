@@ -1,6 +1,8 @@
 ---
 #kubernetes_package_url: "https://dl.k8s.io/v1.9.3/kubernetes-node-windows-amd64.tar.gz"
-kubernetes_package_url: "https://dl.k8s.io/v1.10.0/kubernetes-node-windows-amd64.tar.gz" 
+## Change this to use another Kubernetes version, e.g. a current beta release
+kube_version: v1.10.4
+kubernetes_package_url: "https://dl.k8s.io/{{ kube_version }}/kubernetes-node-windows-amd64.tar.gz" 
 kubernetes_installation_path: "C:/k/"
 
 kubelet_log_path: "C:/var/log/"

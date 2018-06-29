@@ -4,7 +4,7 @@
 **NOTE: work in progress - Kubernetes networking heavily relies on Windows HNS which is still unstable.**
 
 [Ansible](https://www.ansible.com/) playbooks and [Packer](https://www.packer.io/) templates for provisioning of Hyper-V [Vagrant](https://www.vagrantup.com/) boxes and configuration of hybrid Kubernetes 1.10+ cluster with Flannel network (host-gw backend). Currently supports:
-- Windows Server 1709 (Jan 2018) as Kubernetes nodes with Docker 17.10.0-ee-preview-3.
+- Windows Server 1803 (March 2018) as Kubernetes nodes with Docker 17.10.0-ee-preview-3.
 - Ubuntu 16.04 LTS (Xenial) as Kubernetes master and nodes with Docker 17.03.
 - Cluster initialization using [kubeadm](https://kubernetes.io/docs/setup/independent/create-cluster-kubeadm/) (both Windows and Linux nodes).
 - Flannel pod network, host-gw backend (vxlan can be also installed, requires changes in network deployment file and installation of CNI plugins on Windows). Based on https://github.com/coreos/flannel/pull/921 and https://github.com/containernetworking/plugins/pull/85 by [rakelkar](https://github.com/rakelkar).
@@ -15,6 +15,8 @@
 - Provisioning and configuration behind a proxy.
 
 Ansible playbooks provided in this repository have been initially based on the official Microsoft [Getting Started](https://docs.microsoft.com/en-us/virtualization/windowscontainers/kubernetes/getting-started-kubernetes-windows) guide for Kubernetes on Windows. Most of the original scripts in this guide have been replaced by Ansible tasks and NSSM windows services, and on top of that experimental Flannel support with host-gw backend has been added.
+
+The original *kubernetes-for-windows* was modified by @pablodav trying to reuse more parts from external projects to deploy k8s on linux and focusing this project only on the required parts to add a windows node to the existing kubernetes cluster. For that reason @pablodav have removed most parts of k8s for linux and started to deploy k8s with kubespray then adding this project as integrated part of that to deploy *win_node*, but the modifications are done thinking in the possibility to integrate with any other k8s project that uses kubeadm (this project uses kubeadm to generate tokens to join the win_node).
 
 ## Known issues and limitations
 
@@ -53,7 +55,7 @@ Ansible only:
 2. Ubuntu for Windows (WSL) installed.
 3. Ansible 2.5.0+ installed on Ubuntu for Windows (pip installation recommended).
 4. Additional python packages installed for WinRM (follow [Ansible Windows Setup Guide](http://docs.ansible.com/ansible/2.5/user_guide/windows_setup.html)).
-5. Windows Server 1709 (Jan 2018) installed on Windows Kubernetes nodes.
+5. Windows Server 1803 (March 2018) installed on Windows Kubernetes nodes.
 6. WinRM properly configured on Windows Kubernetes nodes.
 7. Ubuntu 16.04 LTS (Xenial) installed on Linux master and nodes.
 
@@ -76,66 +78,174 @@ First, install all prerequisites from the previous paragraph. Ensure that a basi
 ### Step 2 - Prepare inventory file
 A sample inventory file has been provided in [Ansible playbook directory](ansible/inventory). Assuming that you would like to create cluster having the following hosts:
 
- - Master node: ubuntu01
+ - Master node: ubuntu01, ubuntu02
  - Linux nodes: ubuntu02, ubuntu03
  - Windows nodes: windows01, windows02
 
 your inventory should be defined as:
 ```
-[master-ubuntu]
-ubuntu01 kubernetes_node_hostname=ubuntu01_some_hostname
+# ## Configure 'ip' variable to bind kubernetes services on a
+# ## different ip than the default iface
+# node1 ansible_host=95.54.0.12  # ip=10.3.0.1
+# node2 ansible_host=95.54.0.13  # ip=10.3.0.2
+# node3 ansible_host=95.54.0.14  # ip=10.3.0.3
+# node4 ansible_host=95.54.0.15  # ip=10.3.0.4
+# node5 ansible_host=95.54.0.16  # ip=10.3.0.5
+# node6 ansible_host=95.54.0.17  # ip=10.3.0.6
 
-[node-ubuntu]
-ubuntu02 kubernetes_node_hostname=ubuntu02_some_hostname
-ubuntu03 kubernetes_node_hostname=ubuntu03_some_hostname
+# This inventory is based on an integrated inventory with kubespray
+# the kube-master, kube-node, etcd, kube-ingres, k8s-cluster comes from kubespray
+# https://github.com/kubernetes-incubator/kubespray/blob/master/docs/integration.md
+# https://github.com/kubernetes-incubator/kubespray/blob/master/inventory/sample/hosts.ini
+
+[Location1]
+ubuntu01  ansible_host=10.3.0.1
+ubuntu02  ansible_host=10.3.0.2
+ubuntu03  ansible_host=10.3.0.3
+
+# ## configure a bastion host if your nodes are not directly reachable
+# bastion ansible_host=x.x.x.x ansible_user=some_user
+
+[kube-master]
+ubuntu01
+ubuntu02
+
+[etcd]
+ubuntu01
+ubuntu02
+ubuntu03
+
+[kube-node]
+ubuntu02
+ubuntu03
+
+[kube-ingress]
+ubuntu02
+ubuntu03
+
+[k8s-cluster:children]
+kube-master
+kube-node
+kube-ingress
+
+# Add group of master-ubuntu for kubernetes-for-windows project
+[master-ubuntu:children]
+kube-master
 
 [node-windows]
-windows01 kubernetes_node_hostname=windows01_some_hostname
-windows02 kubernetes_node_hostname=windows02_some_hostname
+windows01 kubernetes_node_hostname=windows01 ansible_host=10.3.0.4
+windows02 kubernetes_node_hostname=windows02 ansible_host=10.3.0.5
 
 [node:children]
 node-windows
-node-ubuntu
+
+# This k8s-cluster-local is a group added to add all variables inside that group
+# all variables for kubespray and for kubernetes-for-windows projects in your group_vars inventory
+[k8s-cluster-local:children]
+k8s-cluster
+node-windows
 
 [all-ubuntu:children]
 master-ubuntu
-node-ubuntu
+
 ```
-The host variable ``kubernetes_node_hostname`` will be used as Windows/Linux hostname and at the same time it will be used to identify node in Kubernetes.
-Any other variables that you wish to configure are available in [group_vars](ansible/group_vars) and in [vars](ansible/vars/main.yml), for example cluster/service pod CIDRs.
-### Step 3 - Install Kubernetes packages using install-kubernetes.yml playbook
-In order to install basic Kubernetes packages on Windows and Linux nodes, run ``install-kubernetes.yml`` playbook:
+The host variable ``kubernetes_node_hostname`` will be used as Windows hostname and at the same time it will be used to identify node in Kubernetes.
+Any other variables that you wish to configure are available in [group_vars](ansible/inventory/group_vars) you must copy these vars to your own *group_vars* dir, for example cluster/service pod CIDRs.
+
+You will find more vars for kubespray roles in *k8s-cluster-local*, the vars added here already have flannel and are integrated with vars for kubernetes-for-windows.
+
+### Step 3 - Integrate kubespray and kubernetes-for-windows in your playbooks
+
+---
+
+We are using steps from [kubespray integration](https://github.com/kubernetes-incubator/kubespray/blob/master/docs/integration.md)
+
+First you must have an ansible git repo, if not init one:
+
+    git init
+
+Then copy these files to your inventory:
+
+```shell
+├── ansible.cfg  # It will have the roles_path and library path you can read and add to your own ansible.cfg file
+├── inventory  # For all files in inventory you have a sample in this project
+│   ├── kubernetes.ini 
+│   ├── group_vars
+│   │   ├── k8s-cluster-local  # Directory with vars for group k8s-cluster-local
+│   │   │   ├── all-k8s.yml
+│   │   │   ├── k8s-cluster.yml
+│   │   │   └── k8s-win.yml
+├── roles.kubernetes.yml  # It will have all kubespray and kubernetes-for-windows import playbooks
 ```
-ansible-playbook -i inventory install-kubernetes.yml
+
+Also create directory:
+
+```shell
+mkdir -p roles/3d
 ```
+
+Then add as submodules kubespray and kubernetes-for-windows to use these roles:
+
+```shell
+git submodule add https://github.com/kubernetes-incubator/kubespray.git roles/3d/kubespray
+git submodule add https://github.com/pablodav/kubernetes-for-windows roles/3d/kubernetes-for-windows # hope in future we can agree with main author of it to use his repository https://github.com/ptylenda/kubernetes-for-windows
+```
+
+You must have now:
+
+```shell
+ls -1 roles/3d/
+kubernetes-for-windows
+kubespray
+```
+
+Now you have all the roles and variables ready, just install the requirements from kubespray:
+
+```shell
+sudo pip install -r roles/3d/kubespray/requirements.txt
+```
+
+### Step 3 - Install Kubernetes packages using roles.kubernetes.yml playbook
+
+---
+
+In order to install basic Kubernetes packages on Windows and Linux nodes, run ``roles.kubernetes.yml`` playbook:
+
+```shell
+ansible-playbook roles.kubernetes.yml -i inventory/kubernetes.ini -b -v
+```
+
+You can also install only linux with kubespray:
+
+```shell
+ansible-playbook roles.kubernetes.yml -i inventory/kubernetes.ini --tags role::kubespray -b -vvv
+```
+
+And then the windows nodes:
+
+```shell
+ansible-playbook roles.kubernetes.yml -i inventory/kubernetes.ini --tags role::kubernetes-for-windows -b -vvv
+```
+
 The playbook consists of the following stages:
 
-1. Installation of common modules on Windows and Linux. This includes various packages required by Kubernetes and recommended configuration, setting up proxy variables, updating OS, changing hostname.
+1. Installation of common modules on Windows and Linux. This includes various packages required by Kubernetes and recommended configuration, setting up proxy variables, updating OS, changing hostname. (For linux it installs from kubespray modules)
 2. Docker installation. On Windows, at this stage, appropriate Docker images are being pulled and tagged for compatibility reasons, as mentioned in official Microsoft [guide](https://docs.microsoft.com/en-us/virtualization/windowscontainers/kubernetes/getting-started-kubernetes-windows#creating-the-pause-image).
 3. CNI plugins installation. On Windows, custom plugins are downloaded based on this [repository](https://github.com/ptylenda/plugins/tree/windowsCni) which is a fork of https://github.com/containernetworking/plugins/pull/85 by [rakelkar](https://github.com/rakelkar).
 4. Kubernetes packages installation (currently 1.10). On Windows, there are also NSSM services created for kubelet and kube-proxy (in 1.10 it should be possible to create the services natively, however it has not been tested here)
 5. On Windows, custom Flannel is installed based on this [repository](https://github.com/ptylenda/flannel/tree/windowsHostGw180115) which is a fork of https://github.com/coreos/flannel/pull/921 by [rakelkar](https://github.com/rakelkar)
 
-At this point, the nodes are ready to be initialized by kubeadm as hybrid Kubernetes cluster. Packer templates aim at automating OS installation and Kubernetes packages installation up to this stage.
-### Step 4 - Create Kubernetes cluster with kubeadm using create-kubeadm-cluster.yml
-In order to initialize the cluster, run ``create-kubeadm-cluster.yml`` playbook:
-```
-ansible-playbook -i inventory create-kubeadm-cluster.yml --tags=init
-```
+
 Filtering by ``init`` tag omits installation of Kubernetes packages which have been already installed in Step 3.
 Installation consists of the following stages:
 ##### Master initialization
-1. Master node is initialized using kubeadm.
-2. Cluster join token is generated using kubeadm for other nodes.
-3. Old Flannel routes/networks are deleted, if present.
+1. All installation is performed with kubespray kubeadm vars are selected in our sample
 4. Kube config is copied to current user's HOME.
 5. [RBAC role and role binding](ansible/roles/ubuntu/kubernetes-master/files/kube-proxy-node-rbac.yml) for standalone kube-proxy service is applied. It is required for Windows, which does not host kube-proxy as Kubernetes pod, i.e. it is hosted as a traditional system service.
 6. An additional node selector for kube-proxy is applied. Node selector ensures that kube-proxy daemonset is only deployed to Linux nodes. On Windows it is not supported yet, hence the standalone system service.
-7. Flannel network with host-gw backend is installed. Node selector ``beta.kubernetes.io/os: linux`` has been added in order to prevent from deploying on Windows nodes, where Flannel is being handled independently.
+7. Flannel network node selector ``beta.kubernetes.io/os: linux`` has been added in order to prevent from deploying on Windows nodes, where Flannel is being handled independently.
 ##### Ubuntu nodes initialization
-1. Node joins cluster using kubeadm and token generated on master.
-2. Old Flannel routes/networks are deleted, if present.
-3. Kubelet service is started.
+1. all done with kubespray
 ##### Windows nodes initialization
 1. Node joins cluster using kubeadm and token generated on master. Works exactly the same as for Linux nodes.
 2. Old Flannel routes/networks are deleted, if present. HNS endpoints/policies are deleted, all the operations are performed by [kube-cleanup.ps1](ansible/roles/windows/kubernetes-node/files/kube-cleanup.ps1) script.
@@ -158,20 +268,19 @@ If you wish to tear down the cluster, without destroying the master node, execut
 ```
 ansible-playbook -i inventory reset-kubeadm-cluster.yml
 ```
-And in case you would like to tear down the cluster completely, including the master:
-```
-ansible-playbook -i inventory reset-kubeadm-cluster.yml --extra-vars="kubernetes_reset_master=True"
-```
-This playbook performs draining and deleting of the nodes on master node and eventually it resets the node using kubeadm, so that it is available for joining via kubeadm again.
+This will reset only windows node, to reset linux cluster follow the kubespray steps. [Remove nodes](https://github.com/kubernetes-incubator/kubespray/blob/master/docs/getting-started.md#remove-nodes)
 
 ## Packer usage
+
+Actually it needs review, to integrate kubespray so it is not working as it was working before.
+
 For easier usage of Packer with Ansible Remote provisoner on Windows, an additional wrapper script has been provided: [packer-ansible-windows.ps1](packer/windows/packer-ansible-windows.ps1). Basically it adds Ansible wrappers to PATH and ensures that proxy settings are configured properly.
 
-ISO files are expected to be loaded from ``./iso`` subdirectory in packer build space. For Ubuntu it is also possible to download the image automatically from the official http server. For Windows you have to provide your own copy of Windows Server 1709 ISO.
+ISO files are expected to be loaded from ``./iso`` subdirectory in packer build space. For Ubuntu it is also possible to download the image automatically from the official http server. For Windows you have to provide your own copy of Windows Server 1803 ISO.
 
 To build Windows node on Hyper-V:
 
-	$  .\packer-ansible-windows.ps1 build --only=hyperv-iso .\kubernetes-node-windows1709-jan2018.json
+	$  .\packer-ansible-windows.ps1 build --only=hyperv-iso .\kubernetes-node-windows1803-march2018.json
 
 Default user: ubuntu
 

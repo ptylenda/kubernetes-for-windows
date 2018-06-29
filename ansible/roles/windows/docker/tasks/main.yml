@@ -1,6 +1,7 @@
 ---
 - name: Install Hyper-V with management tools
   win_shell: Install-WindowsFeature -Name Hyper-V -IncludeManagementTools -IncludeAllSubFeature
+  when: win_docker_enable_hyperv
 
 - name: Set linux containers on windows mode
   win_environment:
@@ -9,21 +10,60 @@
     value: 1
     level: machine
 
-- name: Install required version of NuGet Package Provider
-  win_shell: Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-
-- name: Install Docker PackageManagement Provider (official from Docker, not Msft)
-  win_shell: Install-Module DockerProvider -Force
-
 - name: Check if docker is already installed
-  win_shell: (Get-Package -Name Docker -ProviderName DockerProvider).Version
+  win_shell: (Get-Package -Name Docker -ProviderName {{ win_docker_provider }}).Version
   ignore_errors: yes
   register: check_docker_package_state
 
-- name: Install docker
-  win_shell: Install-Package Docker -ProviderName DockerProvider -Force -RequiredVersion "{{ docker_version }}"
-  when: check_docker_package_state is failed or check_docker_package_state.stdout | trim != docker_version
-  register: install_docker_package_state
+- block:
+  # Installation docker steps
+  # also applies workaround https://github.com/OneGet/MicrosoftDockerProvider/issues/15#issuecomment-269219021
+
+  - name: Install required version of NuGet Package Provider
+    win_shell: Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+
+  - name: Install Docker PackageManagement Provider (official from Docker, not Msft)
+    win_shell: Install-Module DockerProvider -Force
+    when: win_docker_provider == 'DockerProvider'
+
+  - name: prepare msft directory to download files
+    win_file:
+      path: "{{ win_docker_temp_dir }}"
+      state: directory
+    when: win_docker_provider == 'DockerMsftProvider'
+
+#  - name: Download docker zip file from msft with proxy
+#    win_get_url:
+#      url: "https://dockermsft.blob.core.windows.net/dockercontainer/{{ win_docker_zip_filename }}"
+#      dest: "{{ win_docker_zip_file }}"
+#      proxy_url: "{{ win_choco_proxy_url }}"
+#      proxy_username: "{{ win_choco_proxy_username }}"
+#      proxy_password: "{{ win_choco_proxy_password }}"
+#    when: win_docker_provider == 'DockerMsftProvider' and configure_proxy
+
+#  - name: Download docker zip file from msft without proxy
+#    win_get_url:
+#      url: "https://dockermsft.blob.core.windows.net/dockercontainer/{{ win_docker_zip_filename }}"
+#      dest: "{{ win_docker_zip_file }}"
+#    when: win_docker_provider == 'DockerMsftProvider' and not configure_proxy
+
+#  - name: Get-Filehash for downloaded docker version
+#    win_shell: Get-FileHash -Path {{ win_docker_zip_file }} -Algorithm SHA256
+#    changed_when: false
+#    when: win_docker_provider == 'DockerMsftProvider'
+
+  - name: Install docker
+    win_shell: Install-Package Docker -ProviderName {{ win_docker_provider }} -Force -RequiredVersion "{{ win_docker_version }}"
+    when: win_docker_provider == 'DockerProvider'
+    register: install_docker_package_state
+
+  # I had to perform the installation in this way to have it installed properly
+  - name: Install docker from msft
+    script: install_docker_msft.ps1 -RequiredVersion "{{ win_docker_version }}"
+    when: win_docker_provider == 'DockerMsftProvider'
+    register: install_docker_package_state
+
+  when: check_docker_package_state is failed or check_docker_package_state.stdout | trim != win_docker_version
 
 - name: Reboot after docker installation
   win_reboot:

@@ -1,9 +1,21 @@
 ---
-docker_version: "17.10.0-ee-preview-3"  # "17.06.2-ee-6"
 enable_linux_containers_on_windows: False
 docker_service_watcher_daemon_path: "C:/ProgramData/Docker/docker-service-watcher-daemon.ps1"
 docker_service_watcher_service_name: docker-service-watcher
 docker_service_watcher_log_path: "C:/var/log"
 
-docker_windowsservercore_image: "microsoft/windowsservercore:1709"  # "microsoft/windowsservercore-insider:10.0.17623.1002"
-docker_nanoserver_image: "microsoft/nanoserver:1709"  # "microsoft/nanoserver-insider:10.0.17623.1002"
+docker_windowsservercore_image: "microsoft/windowsservercore:1803"  # "microsoft/windowsservercore-insider:10.0.17623.1002"
+docker_nanoserver_image: "microsoft/nanoserver:1803"  # "microsoft/nanoserver-insider:10.0.17623.1002"
+win_docker_enable_hyperv: False
+# Microsoft Docker Provider is required for Windows Containers support
+# Docker version depends on the provider used, from msft use docker ee
+win_docker_provider: "DockerMsftProvider"
+# Option2: Use nuget with DockerProvider, but it requires hyperv as doesn't use Windows Containers
+# win_docker_provider: "DockerProvider"
+# https://github.com/OneGet/MicrosoftDockerProvider 
+
+# https://dockermsft.blob.core.windows.net/dockercontainer/DockerMsftIndex.json
+win_docker_version: "17.06.2-ee-13"  # "17.06.2-ee-6" "17.06.2-ee-8" "17.10.0-ee-preview-3"
+win_docker_zip_filename: "docker-{{ win_docker_version }}.zip"
+win_docker_temp_dir: "/Users/{{ ansible_user }}/Appdata/Local/Temp/DockerMsftProvider"
+win_docker_zip_file: "{{ win_docker_temp_dir }}/{{ win_docker_zip_filename }}"

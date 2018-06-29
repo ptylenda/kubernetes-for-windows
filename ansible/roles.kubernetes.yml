@@ -1,0 +1,15 @@
+---
+
+- import_playbook: roles/3d/kubespray/cluster.yml
+  tags:
+    - role::kubespray
+
+- import_playbook: roles/3d/kubernetes-for-windows/ansible/install-kubernetes.yml
+  tags:
+    - role::kubernetes-for-windows
+    - kubernetes_install_windows
+
+- import_playbook: roles/3d/kubernetes-for-windows/ansible/create-kubeadm-cluster.yml
+  tags:
+    - role::kubernetes-for-windows
+    - kubernetes_init_windows
