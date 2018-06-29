@@ -6,6 +6,16 @@
     - import_role:
         name: common/gather-facts
 
+- name: Patch kube-admin env pods services
+  hosts: master-ubuntu[0]
+  environment: "{{ env_vars|default({}) }}"
+  gather_facts: no
+  tasks:
+
+    - import_role:
+        name: ubuntu/kubernetes-master
+      tags: init
+
 - name: Install kubernetes on ubuntu nodes 
   hosts: all-ubuntu
   become: yes

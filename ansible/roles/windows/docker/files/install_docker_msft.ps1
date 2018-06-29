@@ -15,7 +15,11 @@ if (-not (Test-Path "$env:TEMP\DockerMsftProvider")) {
 }
 $downloadURL = "https://dockermsft.blob.core.windows.net/dockercontainer/$($ZipNameVersion)"
 $destination = "$env:TEMP\DockerMsftProvider\$($ZipNameVersion)"
-Invoke-WebRequest -Uri $downloadURL -OutFile $destination
+# if there is CPU usage high it will fail
+# try stopping kubelet kube-proxy and flanneld before going to download this.
+#Invoke-WebRequest -Uri $downloadURL -OutFile $destination
+#Write-Host "File downloaded: $destination"
+Write-Host "Installing with: Install-Package Docker -ProviderName DockerMsftProvider -Confirm -RequiredVersion $RequiredVersion -Verbose -ForceBootstrap"
 Install-Package Docker -ProviderName DockerMsftProvider -Confirm -RequiredVersion $RequiredVersion -Verbose -ForceBootstrap
 
 # TODO: convert it as an ansible module

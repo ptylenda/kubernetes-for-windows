@@ -7,6 +7,32 @@
   ignore_errors: yes
   tags: cni
 
+- name: Firewall rule to allow flannel on TCP port 8285
+  win_firewall_rule:
+    name: flannel udp
+    localport: 8285
+    action: allow
+    direction: in
+    protocol: udp
+    state: present
+    enabled: yes
+  tags:
+    - cni
+    - win_firewall
+
+- name: Firewall rule to allow flannel on TCP port 8472
+  win_firewall_rule:
+    name: flannel vxlan
+    localport: 8472
+    action: allow
+    direction: in
+    protocol: udp
+    state: present
+    enabled: yes
+  tags:
+    - cni
+    - win_firewall
+
 - name: Ensure that download temporary kubernetes directory exists
   win_file:
     path: "{{ download_temp_path }}"

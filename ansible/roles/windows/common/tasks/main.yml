@@ -87,6 +87,7 @@
       - SecurityUpdates
       - Updates
   register: update_state
+  when: win_common_install_updates
 
 - name: Reboot if needed
   win_reboot:
