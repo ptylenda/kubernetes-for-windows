@@ -62,7 +62,16 @@
       with_items:
         - kubelet
         - kube-proxy
+      tags: [init, join]
+
+    - name: Stop flanneld services on windows nodes
+      win_service:
+        name: "{{ item }}"
+        state: stopped
+        force_dependent_services: yes
+      with_items:
         - flanneld
+      when: kube_network_plugin == 'flannel'
       tags: [init, join]
 
     - name: Ensure that service kubelet is started on windows nodes
@@ -74,7 +83,6 @@
       with_items:
         - kubelet
         - kube-proxy
-        - flanneld
       tags: [init, join]
 
     # Currently there is no better way to do this. Otherwise flanneld starts 
@@ -91,6 +99,7 @@
         state: restarted
         force_dependent_services: yes
       tags: [init, join]
+      when: kube_network_plugin == 'flannel'
       
     - name: Wait for flanneld to start properly
       pause:
@@ -107,3 +116,16 @@
         - kube-proxy
         - flanneld
       tags: [init, join]
+      when: kube_network_plugin == 'flannel'
+      register: kube_proxy_restart_status
+
+    - name: Ensure that kube-proxy are started on windows nodes
+      win_service:
+        name: "{{ item }}"
+        start_mode: auto
+        state: restarted
+        force_dependent_services: yes
+      with_items:
+        - kube-proxy
+      tags: [init, join]
+      when: kube_proxy_restart_status is not defined

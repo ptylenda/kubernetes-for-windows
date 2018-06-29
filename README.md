@@ -13,6 +13,7 @@
 - Exposing NodePort services on both Windows and Linux nodes.
 - Packer templates with Ansible support which can be executed on Windows hosts, thanks to Powershell wrappers for Ansible commands ([ptylenda/ansible-for-windows-wsl-powershell-fall-creators-update](https://github.com/ptylenda/ansible-for-windows-wsl-powershell-fall-creators-update)). Similar solution was used in demo Packer template in [ptylenda/packer-template-ubuntu1604-ansible-proxy](https://github.com/ptylenda/packer-template-ubuntu1604-ansible-proxy).
 - Provisioning and configuration behind a proxy.
+- Workaround for https://github.com/OneGet/MicrosoftDockerProvider/issues/15 by pablodav.
 
 Ansible playbooks provided in this repository have been initially based on the official Microsoft [Getting Started](https://docs.microsoft.com/en-us/virtualization/windowscontainers/kubernetes/getting-started-kubernetes-windows) guide for Kubernetes on Windows. Most of the original scripts in this guide have been replaced by Ansible tasks and NSSM windows services, and on top of that experimental Flannel support with host-gw backend has been added.
 
@@ -38,11 +39,11 @@ The original *kubernetes-for-windows* was modified by @pablodav trying to reuse 
     - [ ] Communication with external IPs (i.e. outbound NAT) from Windows pods - **this is the most significant issue, with current Windows HNS and Hyper-V Virtual Switch it is not possible to achieve outbound NAT without losing pod-to-pod communication from Windows nodes**. 
  3. There are problems with automatic configuration of DNS in Windows pods (depends on Windows version). Some workarounds have been posted in this [azure-acs-engine issue](https://github.com/Azure/acs-engine/issues/2027).
  4. It is not possible to use Ansible Remote provisioner with Ansible 2.5.0 and Packer 1.2.2 for Windows nodes due to the following exception:
-```
+```shell
 ntlm: HTTPSConnectionPool(host='127.0.0.1', port=63008): Max retries exceeded with url: /wsman (Caused by SSLError(SSLError(1, u'[SSL: UNKNOWN_PROTOCOL] unknown protocol (_ssl.c:590)'),))
 ```
 Similar issues are present with Ubuntu templates:
-```
+```shell
 SSH Error: data could not be sent to remote host \"127.0.0.1\". Make sure this host can be reached over ssh
 ```
 Unfortunately I did not have time to investigate this issue yet, but the Packer provisioning process used to work on lower versions of Ansible and Packer.
@@ -205,7 +206,7 @@ Now you have all the roles and variables ready, just install the requirements fr
 sudo pip install -r roles/3d/kubespray/requirements.txt
 ```
 
-### Step 3 - Install Kubernetes packages using roles.kubernetes.yml playbook
+### Step 4 - Install Kubernetes packages using roles.kubernetes.yml playbook
 
 ---
 
@@ -226,6 +227,17 @@ And then the windows nodes:
 ```shell
 ansible-playbook roles.kubernetes.yml -i inventory/kubernetes.ini --tags role::kubernetes-for-windows -b -vvv
 ```
+
+You will notice that the role with tag `role::kubernetes-for-windows` will patch kube-proxy and kube-flannel:
+
+```shell
+kubectl get ds -n kube-system
+NAME           DESIRED   CURRENT   READY     UP-TO-DATE   AVAILABLE   NODE SELECTOR                 AGE
+kube-flannel   3         3         3         3            3           beta.kubernetes.io/os=linux   34m
+kube-proxy     3         3         3         3            3           beta.kubernetes.io/os=linux   8d
+```
+
+So the daemonset will not be deployed in windows.
 
 The playbook consists of the following stages:
 
@@ -332,3 +344,43 @@ Then handle these variables appropriately in playbook, set environment variables
 [linux]
 127.0.0.1 ansible_connection=local
 ```
+
+Additional notes about windows performance
+==========================================
+
+Exclude windows defender on docker path and exe files:
+
+```shell
+Add-MpPreference -ExclusionPath C:\ProgramData\docker\
+set-MpPreference -ExclusionProcess "dockerd.exe, flanneld.exe, kube-proxy.exe, kubelet.exe"
+```
+
+Or exclude the docker path in your antivirus.
+
+In case of doubt with windows defender, disable it temporarly:
+
+```shell
+Set-MpPreference -DisableRealtimeMonitoring $true
+```
+
+Some other troubleshooting tweaks
+=================================
+
+Networking with kube-proxy and flanneld services
+------------------------------------------------
+
+Service start order matters, in some tests I (pablodav) have confirmed that this order is required to get all network devices and IP addresses created during start:
+
+1. docker
+2. kubelet
+3. kube-proxy
+4. flanneld
+
+For that reason I have added serialized dependencies on nssm service config on tasks.
+
+Publish services on Premises
+============================
+
+Use this model for on-premises:
+
+https://medium.com/@kyralak/accessing-kubernetes-services-without-ingress-nodeport-or-loadbalancer-de6061b42d72

@@ -7,6 +7,32 @@
   ignore_errors: yes
   tags: cni
 
+- name: Firewall rule to allow flannel on TCP port 8285
+  win_firewall_rule:
+    name: flannel udp
+    localport: 8285
+    action: allow
+    direction: in
+    protocol: udp
+    state: present
+    enabled: yes
+  tags:
+    - cni
+    - win_firewall
+
+- name: Firewall rule to allow flannel on TCP port 8472
+  win_firewall_rule:
+    name: flannel vxlan
+    localport: 8472
+    action: allow
+    direction: in
+    protocol: udp
+    state: present
+    enabled: yes
+  tags:
+    - cni
+    - win_firewall
+
 - name: Ensure that download temporary kubernetes directory exists
   win_file:
     path: "{{ download_temp_path }}"
@@ -14,11 +40,17 @@
     recurse: yes
   tags: cni
 
+- name: check if cni file is downloaded
+  win_stat:
+    path: "{{ download_temp_path }}/{{ flannel_package_file }}"
+  register: flannel_stat_package_file_info
+
 - name: Download flannel package with host-gw support
   win_get_url:
     url: "{{ flannel_package_url }}"
-    dest: "{{ download_temp_path }}/flannel.tar.gz"
+    dest: "{{ download_temp_path }}/{{ flannel_package_file }}"
     force: yes
+  when: not flannel_stat_package_file_info.stat.exists
   tags: cni
 
 - name: Ensure that unzip temporary directory exists
@@ -31,7 +63,7 @@
 # Unzipping tar.gz on windows host is rather clumsy. Another option is to use 7zip directly as in: https://stackoverflow.com/questions/1359793/programmatically-extract-tar-gz-in-a-single-step-on-windows-with-7zip
 #- name: Unzip flannel gz package 
 #  win_unzip:
-#    src: "{{ download_temp_path }}/flannel.tar.gz"
+#    src: "{{ download_temp_path }}/{{ flannel_package_file }}"
 #    dest: "{{ download_temp_path }}"
 #    delete_archive: yes
 #
@@ -49,15 +81,10 @@
 #  with_items: "{{ flannel_find_state.files }}"
 
 - name: Unzip flannel package
-  win_shell: 7z x "{{ download_temp_path }}/flannel.tar.gz" -so | 7z x -aoa -si -ttar -o"{{ unzip_temp_path }}"
+  win_shell: 7z x "{{ download_temp_path }}/{{ flannel_package_file }}" -so | 7z x -aoa -si -ttar -o"{{ unzip_temp_path }}"
   args:
     executable: cmd  # Required as powershell provides unwanted buffering
-  tags: cni
-
-- name: Delete flannel package archive
-  win_file:
-    path: "{{ download_temp_path }}/flannel.tar.gz"
-    state: absent
+  when: not flannel_stat_package_file_info.stat.exists
   tags: cni
 
 - name: Ensure that flannel installation directory exists
@@ -72,6 +99,7 @@
     remote_src: yes
     src: "{{ unzip_temp_path }}"
     dest: "{{ flannel_installation_path }}"
+  when: not flannel_stat_package_file_info.stat.exists
   tags: cni
 
 - name: Delete temporary unzip directory
@@ -123,7 +151,7 @@
         stderr_file: "{{ flannel_log_path }}/{{ flannel_service_name }}-stderr.log"
         state: present
         start_mode: auto
-        #dependencies: kubelet,docker  # latest NSSM throws a lot of errors when used with ansible and multiple dependencies. Defining them manually below
+        dependencies: "{{ kube_proxy_service_name }}"  # latest NSSM throws a lot of errors when used with ansible and multiple dependencies. Defining them manually below
 
     - name: Set flannel service restart delay for short executions
       win_shell: "nssm set {{ flannel_service_name }} AppThrottle 1500"
@@ -132,7 +160,7 @@
       win_shell: "nssm set {{ flannel_service_name }} AppExit Default Restart"
 
     - name: Set flannel service restart delay in case of failure
-      win_shell: "nssm set {{ flannel_service_name }} AppRestartDelay 1000"
+      win_shell: "nssm set {{ flannel_service_name }} AppRestartDelay 5000"
 
     - name: Set flannel service to not overwrite stdout file
       win_shell: "nssm set {{ flannel_service_name }} AppStdoutCreationDisposition 4"
@@ -140,9 +168,11 @@
     - name: Set flannel service to not overwrite stderr file
       win_shell: "nssm set {{ flannel_service_name }} AppStderrCreationDisposition 4"
 
-    - name: Set flannel service dependency on docker
-      win_shell: "nssm set {{ flannel_service_name }} DependOnService :Docker"
+    #- name: Set flannel service dependency on docker
+    #  win_shell: "nssm set {{ flannel_service_name }} DependOnService :Docker"
 
-    - name: Set flannel service dependency on kubelet
-      win_shell: "nssm set {{ flannel_service_name }} DependOnService +kubelet"
+    #- name: Set flannel service dependency on kubelet
+    #  win_shell: "nssm set {{ flannel_service_name }} DependOnService +kubelet"
+    #- name: Set flannel service dependency on kubelet
+    #  win_shell: "nssm set {{ flannel_service_name }} DependOnService +kube-proxy"      
   tags: cni
