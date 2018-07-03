@@ -50,6 +50,10 @@ Unfortunately I did not have time to investigate this issue yet, but the Packer 
 
 4. The playbooks have been also tested with latest Windows Server Insider Program builds but it requires altering playbooks, so that proper base container image for Kubernetes infra container is downloaded (insider and non-insider container images are not compatible).
 
+## Quickstart
+
+For a quickstart you can see: https://github.com/pablodav/kubernetes-for-windows-quickstart
+
 ## Prerequisites
 Ansible only:
 1. Windows 10 Fall Creators update ([1709](https://support.microsoft.com/en-us/help/4028685/windows-10-get-the-fall-creators-update)) as Hyper-V host and Ansible master.
