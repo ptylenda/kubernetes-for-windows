@@ -20,6 +20,9 @@ kube_api_anonymous_auth: true
 
 ## Change this to use another Kubernetes version, e.g. a current beta release
 kube_version: v1.10.5
+# If you change the version from kubespray version, you must add sha256sum output for the kubeadm file:
+# kubeadm_checksum: f231d4bcc9f2ed15597272e5359e380cc760c0b57a1f7cb97ce2bbab5df774e0
+# downloaded from: kubeadm_download_url: "https://storage.googleapis.com/kubernetes-release/release/{{ kubeadm_version }}/bin/linux/amd64/kubeadm"
 
 # Where the binaries will be downloaded.
 # Note: ensure that you've enough disk space (about 1G)
