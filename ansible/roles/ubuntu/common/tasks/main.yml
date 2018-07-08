@@ -85,14 +85,12 @@
     async: 1
     poll: 0
 
-  - name: Wait for host to restart
-    local_action:
-      module: wait_for
-      args:
-        host: "{{ inventory_hostname }}"
-        port: 22
-        delay: 10
-    become: no
+  - name: Wait connection 300 seconds, but only start checking after 10 seconds
+    wait_for_connection:
+      delay: 10
+      timeout: 300
+    become: false
+
   when: (swap_disable_state is defined and swap_disable_state is changed)
     or (parted_delete_swap_state is defined and parted_delete_swap_state is changed)
     or (sysctl_state is defined and sysctl_state is changed)
