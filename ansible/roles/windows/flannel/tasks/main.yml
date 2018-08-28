@@ -102,13 +102,6 @@
   when: not flannel_stat_package_file_info.stat.exists
   tags: cni
 
-- name: Delete temporary unzip directory
-  win_file:
-    path: "{{ unzip_temp_path }}"
-    state: absent
-    recurse: yes
-  tags: cni
-
 - name: Ensure that flannel config directory exists
   win_file:
     path: "{{ flannel_config_path }}"
@@ -151,7 +144,7 @@
         stderr_file: "{{ flannel_log_path }}/{{ flannel_service_name }}-stderr.log"
         state: present
         start_mode: auto
-        dependencies: "{{ kube_proxy_service_name }}"  # latest NSSM throws a lot of errors when used with ansible and multiple dependencies. Defining them manually below
+        dependencies: "{{ kubelet_service_name }}"  # latest NSSM throws a lot of errors when used with ansible and multiple dependencies. Defining them manually below
 
     - name: Set flannel service restart delay for short executions
       win_shell: "nssm set {{ flannel_service_name }} AppThrottle 1500"

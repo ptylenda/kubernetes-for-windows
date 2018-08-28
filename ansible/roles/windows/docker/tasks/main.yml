@@ -120,7 +120,8 @@
       stdout_file: "{{ docker_service_watcher_log_path }}/{{ docker_service_watcher_service_name }}-stdout.log"
       stderr_file: "{{ docker_service_watcher_log_path }}/{{ docker_service_watcher_service_name }}-stderr.log"
       state: present
-      start_mode: auto
+      start_mode: delayed
+      dependencies: mpssvc # wait for windows firewall service
 
   - name: Set service restart delay for short executions
     win_shell: "nssm set {{ docker_service_watcher_service_name }} AppThrottle 1500"

@@ -1,15 +1,16 @@
 ---
-flannel_package_url: "https://github.com/ptylenda/flannel/releases/download/v0.10.0-win-hostgw-fix/flannel-v0.10.0-windows-amd64.tar.gz"
-flannel_package_file: "flannel-v0.10.0-windows-amd64.tar.gz"
+flannel_version: "flannel-v0.10.0-windows-amd64"
+flannel_package_file: "{{ flannel_version }}.tar.gz"
+flannel_package_url: "https://github.com/ptylenda/flannel/releases/download/v0.10.0-win-hostgw-fix/{{ flannel_package_file }}"
 flannel_installation_path: "C:/k/"
 flannel_config_path: "C:/etc/kube-flannel/"  # This is the recommended directory - flanneld will automatically load configuration
 flannel_log_path: "C:/var/log/"
 flannel_service_name: flanneld
 
 download_temp_path: "C:/Temp/"
-unzip_temp_path: "C:/Temp/flannel/"
+unzip_temp_path: "C:/Temp/flannel/{{ flannel_version }}"
 
 kubernetes_pod_network_cidr: "10.244.0.0/16"
 kubernetes_config_path: "C:/etc/kubernetes/kubelet.conf"
 
-kube_proxy_service_name: kube-proxy # used as dependency on flanneld service
+kubelet_service_name: kubelet # used as dependency on flanneld service
