@@ -5,4 +5,5 @@ Master:
 * Add some troubleshooting step for docker in Readme
 * Add basic proxy usage when installing docker
 * Mark some deprecated notes in old files for docker installation
-* Update to default docker install version: "17.06.2-ee-16"
+* k8s v11.2 notes: https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG-1.11.md#sig-windows-1
+* Upgrade to 17.10+ of docker is required in windows

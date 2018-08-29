@@ -16,8 +16,11 @@ win_docker_provider: "DockerMsftProvider"
 
 # https://dockermsft.blob.core.windows.net/dockercontainer/DockerMsftIndex.json
 # https://github.com/OneGet/MicrosoftDockerProvider#search-a-docker-installer
-win_docker_version: "17.06.2-ee-16"  # "17.06.2-ee-6" "17.06.2-ee-8" "17.10.0-ee-preview-3"
-win_docker_zip_filename: "docker-17-06-2-ee-16.zip"
+win_docker_version: "18.03.1-ee-2"  # "17.06.2-ee-16" "18.03.1-ee-2"
+win_docker_zip_filename: "docker-18-03-1-ee-2.zip"
 win_docker_temp_dir: "/Users/{{ ansible_user }}/Appdata/Local/Temp/DockerMsftProvider"
 win_docker_zip_file: "{{ win_docker_temp_dir }}/{{ win_docker_zip_filename }}"
 win_docker_pull_images: True  # Image core will be pulled when building windows/pause image anyway
+win_docker_metadata_json: 'C:\Program Files\Docker\metadata.json'
+
+win_use_proxy: False

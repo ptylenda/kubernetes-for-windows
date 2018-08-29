@@ -1,4 +1,49 @@
 ---
+
+- name: stat win_docker_metadata_json
+  win_stat:
+    path: "{{ win_docker_metadata_json }}"
+  register: win_docker_metadata_stat
+  tags:
+      - get_docker_installed
+
+- name: Verify existent docker installation
+  block:
+
+  - name: read docker metadata.json
+    win_shell: 'type "{{ win_docker_metadata_json }}"'
+    args:
+      executable: cmd
+    register: docker_metadata
+    tags:
+      - get_docker_installed
+
+  - name: debug docker_metadata
+    debug:
+      msg: "{{ (docker_metadata.stdout | from_json).Version  }} is different than desired {{ win_docker_version }}"
+    when: (docker_metadata.stdout | from_json).Version != win_docker_version
+    tags:
+      - get_docker_installed
+  
+  - name: stop docker to be upgraded
+    win_service:
+      name: "docker"
+      state: stopped
+      force_dependent_services: yes
+    ignore_errors: yes
+
+  - name: remove metadata file to ensure upgrade will be done
+    win_file:
+      path: "{{ win_docker_metadata_json }}"
+      state: absent
+    when: (docker_metadata.stdout | from_json).Version != win_docker_version
+    tags:
+      - get_docker_installed
+
+  when: win_docker_metadata_stat.stat.exists
+  tags:
+      - get_docker_installed
+
 - name: Install Hyper-V with management tools
   win_shell: Install-WindowsFeature -Name Hyper-V -IncludeManagementTools -IncludeAllSubFeature
   when: win_docker_enable_hyperv
@@ -76,16 +121,16 @@
   - name: Install Docker package from DockerMsftProvider
     win_shell: Install-Package –ProviderName "DockerMsftProvider" -Name "Docker" -Force -RequiredVersion "{{ win_docker_version }}" -Verbose
     args:
-      creates: "C:\\Program Files\\Docker\\metadata.json"
+      creates: "{{ win_docker_metadata_json }}"
     register: install_docker_package_state
-    when: win_docker_provider == 'DockerMsftProvider' and not win_choco_proxy_url | bool
+    when: win_docker_provider == 'DockerMsftProvider' and not win_use_proxy
 
   - name: Install Docker package from DockerMsftProvider with Proxy
     win_shell: Install-Package –ProviderName "DockerMsftProvider" -Name "Docker" -Force -RequiredVersion "{{ win_docker_version }}" -Verbose -Proxy "{{ win_choco_proxy_url }}"
     args:
-      creates: "C:\\Program Files\\Docker\\metadata.json"
+      creates: "{{ win_docker_metadata_json }}"
     register: install_docker_package_state
-    when: win_docker_provider == 'DockerMsftProvider' and win_choco_proxy_url | bool
+    when: win_docker_provider == 'DockerMsftProvider' and win_use_proxy
 
   when: check_docker_package_state is failed or check_docker_package_state.stdout | trim != win_docker_version
 
