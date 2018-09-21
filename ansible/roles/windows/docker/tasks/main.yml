@@ -1,7 +1,62 @@
 ---
+
+- name: stat win_docker_metadata_json
+  win_stat:
+    path: "{{ win_docker_metadata_json }}"
+  register: win_docker_metadata_stat
+  tags:
+      - get_docker_installed
+
+- name: Verify existent docker installation
+  block:
+
+  - name: read docker metadata.json
+    win_shell: 'type "{{ win_docker_metadata_json }}"'
+    args:
+      executable: cmd
+    register: docker_metadata
+    tags:
+      - get_docker_installed
+
+  - name: debug docker_metadata
+    debug:
+      msg: "{{ (docker_metadata.stdout | from_json).Version  }} is different than desired {{ win_docker_version }}"
+    when: (docker_metadata.stdout | from_json).Version != win_docker_version
+    tags:
+      - get_docker_installed
+  
+  - name: stop docker to be upgraded
+    win_service:
+      name: "docker"
+      state: stopped
+      force_dependent_services: yes
+    ignore_errors: yes
+
+  - name: remove metadata file to ensure upgrade will be done
+    win_file:
+      path: "{{ win_docker_metadata_json }}"
+      state: absent
+    when: (docker_metadata.stdout | from_json).Version != win_docker_version
+    tags:
+      - get_docker_installed
+
+  when: win_docker_metadata_stat.stat.exists
+  tags:
+      - get_docker_installed
+
 - name: Install Hyper-V with management tools
   win_shell: Install-WindowsFeature -Name Hyper-V -IncludeManagementTools -IncludeAllSubFeature
   when: win_docker_enable_hyperv
+
+- name: Enable Windows Container Feature
+  win_feature:
+    name: Containers
+    state: present
+  register: dockerwindowsfeature
+
+- name: Reboot server if Windows Container Feature requires it
+  win_reboot:
+  when: dockerwindowsfeature.reboot_required
 
 - name: Set linux containers on windows mode
   win_environment:
@@ -22,6 +77,7 @@
 
   - name: Install required version of NuGet Package Provider
     win_shell: Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    when: win_docker_provider == 'DockerProvider'
 
   - name: Install Docker PackageManagement Provider (official from Docker, not Msft)
     win_shell: Install-Module DockerProvider -Force
@@ -33,25 +89,6 @@
       state: directory
     when: win_docker_provider == 'DockerMsftProvider'
 
-#  - name: Download docker zip file from msft with proxy
-#    win_get_url:
-#      url: "https://dockermsft.blob.core.windows.net/dockercontainer/{{ win_docker_zip_filename }}"
-#      dest: "{{ win_docker_zip_file }}"
-#      proxy_url: "{{ win_choco_proxy_url }}"
-#      proxy_username: "{{ win_choco_proxy_username }}"
-#      proxy_password: "{{ win_choco_proxy_password }}"
-#    when: win_docker_provider == 'DockerMsftProvider' and configure_proxy
-
-#  - name: Download docker zip file from msft without proxy
-#    win_get_url:
-#      url: "https://dockermsft.blob.core.windows.net/dockercontainer/{{ win_docker_zip_filename }}"
-#      dest: "{{ win_docker_zip_file }}"
-#    when: win_docker_provider == 'DockerMsftProvider' and not configure_proxy
-
-#  - name: Get-Filehash for downloaded docker version
-#    win_shell: Get-FileHash -Path {{ win_docker_zip_file }} -Algorithm SHA256
-#    changed_when: false
-#    when: win_docker_provider == 'DockerMsftProvider'
   - name: Ensure that any old instance of docker is stopped
     win_service:
       name: "{{ item }}"
@@ -68,18 +105,37 @@
 
   # I had to perform the installation in this way to have it installed properly
   # Run with fixes for https://github.com/OneGet/MicrosoftDockerProvider/issues/15
-  # TODO: Add step to install with proxy
-  - name: Install docker from msft
-    script: install_docker_msft.ps1 -RequiredVersion "{{ win_docker_version }}" -ZipNameVersion "{{ win_docker_zip_filename }}"
+  # # Deprecated file, will be removed
+  # - name: Install docker from msft
+  #  script: install_docker_msft.ps1 -RequiredVersion "{{ win_docker_version }}" -ZipNameVersion "{{ win_docker_zip_filename }}"
+  #  when: win_docker_provider == 'DockerMsftProvider'
+  #  register: install_docker_package_state
+  
+  # example from: https://groups.google.com/forum/#!searchin/ansible-project/docker$20msft%7Csort:date/ansible-project/CSV335dT0EE/we1qzeLcDQAJ
+  - name: Add DockerMsftProvider powershell module repository
+    win_psmodule:
+      name: DockerMsftProvider
+      state: present
     when: win_docker_provider == 'DockerMsftProvider'
+
+  - name: Install Docker package from DockerMsftProvider
+    win_shell: Install-Package –ProviderName "DockerMsftProvider" -Name "Docker" -Force -RequiredVersion "{{ win_docker_version }}" -Verbose
+    args:
+      creates: "{{ win_docker_metadata_json }}"
     register: install_docker_package_state
+    when: win_docker_provider == 'DockerMsftProvider' and not win_use_proxy
+
+  - name: Install Docker package from DockerMsftProvider with Proxy
+    win_shell: Install-Package –ProviderName "DockerMsftProvider" -Name "Docker" -Force -RequiredVersion "{{ win_docker_version }}" -Verbose -Proxy "{{ win_choco_proxy_url }}"
+    args:
+      creates: "{{ win_docker_metadata_json }}"
+    register: install_docker_package_state
+    when: win_docker_provider == 'DockerMsftProvider' and win_use_proxy
 
   when: check_docker_package_state is failed or check_docker_package_state.stdout | trim != win_docker_version
 
 - name: Reboot after docker installation
   win_reboot:
-    reboot_timeout: 3600
-    post_reboot_delay: 180
   when: install_docker_package_state is changed
 
 - name: Ensure that docker service is started properly
@@ -109,7 +165,8 @@
       stdout_file: "{{ docker_service_watcher_log_path }}/{{ docker_service_watcher_service_name }}-stdout.log"
       stderr_file: "{{ docker_service_watcher_log_path }}/{{ docker_service_watcher_service_name }}-stderr.log"
       state: present
-      start_mode: auto
+      start_mode: delayed
+      dependencies: mpssvc # wait for windows firewall service
 
   - name: Set service restart delay for short executions
     win_shell: "nssm set {{ docker_service_watcher_service_name }} AppThrottle 1500"

@@ -38,6 +38,7 @@
         name: windows/docker
       tags:
         - windows::requirements
+        - windows::docker
     - import_role:
         name: windows/cni
       tags:
@@ -50,3 +51,5 @@
     - import_role:
         name: windows/flannel
       when: kube_network_plugin == 'flannel'
+      tags:
+        - windows::flannel

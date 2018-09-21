@@ -382,6 +382,25 @@ Service start order matters, in some tests I (pablodav) have confirmed that this
 
 For that reason I have added serialized dependencies on nssm service config on tasks.
 
+Troubleshooting install steps
+=============================
+
+If docker Install step fails when using DockerMsftProvider, see which ones are the available versions for docker:
+
+https://github.com/OneGet/MicrosoftDockerProvider#example-2-search-by-version-according-to-requiredversion--minimumversion-and-maximumversion-requirements-with-allversions-parameter-all-available-versions-of-docker-installers-are-returned-without-it-only-the-latest-version-is-returned
+
+    Find-Package –providerName DockerMsftProvider –AllVersions
+
+Then change variable `win_docker_version` with correct one, example:
+
+    win_docker_version: "17.06.2-ee-16"
+
+Basic proxy usage was added for docker install, but doesn't use auth, only uses:
+
+    win_choco_proxy_url: "http://proxy:port"
+
+If something fails when not using proxy, try to empty this var or add is as bool
+
 Publish services on Premises
 ============================
 
